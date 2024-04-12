@@ -25,7 +25,7 @@ async function main(){
         let cronTime = 1800000;
         let toBlock = currentBlock.number;
         let fromBlock = currentBlock.number - 1000000;
-        let txMinimum = 0
+        let txMinimum = 5000
         let castsToSend = [];
 
   

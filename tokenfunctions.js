@@ -20,7 +20,7 @@ function filterMintBurns(eventArray1, eventArray2, resultArray, messageTemplate,
             let newObject = {
                 transactionHash: filteredEvent.transactionHash,
                 blockHeight: filteredEvent.blockNumber,
-                value: formattedTxValue,
+                value: parseInt(ethers.BigNumber.from(txValue).toString()),
                 cast: castMessage
             };
             resultArray.push(newObject);
@@ -75,7 +75,7 @@ async function filterExchangeTransfers(eventArray, contractAddress, contractABI,
                         let newObject = {
                             transactionHash: event.transactionHash,
                             blockHeight: event.blockNumber,
-                            value: formattedTxValue,
+                            value: parseInt(ethers.BigNumber.from(txValue).toString()),
                             cast: castMessage
                         };
                         resultArray.push(newObject);
@@ -103,7 +103,6 @@ async function filterAggregatorEvents(events, resultArray, messageTemplate, txMi
         }
         let receipt = await provider.getTransactionReceipt(event.transactionHash);
         let logs = receipt.logs;
-        console.log("logs:" + logs.length);
         for (let i = 0; i < logs.length; i++) {
             if (logs[i].address !== constants.FOAM_ADDRESS) {
                 logs.splice(i, 1);
@@ -138,7 +137,6 @@ async function filterAggregatorEvents(events, resultArray, messageTemplate, txMi
                 value: formattedTxValue,
                 cast: castMessage
             };
-            console.log(newObject)
             resultArray.push(newObject);
         }
     }
@@ -161,7 +159,7 @@ function handleUnfilteredTransfers(transfers, resultArray, messageTemplate, txMi
         let newObject = {
             transactionHash: transfer.transactionHash,
             blockHeight: transfer.blockNumber,
-            value: formattedTxValue,
+            value: txValue,
             cast: castMessage
         }
         resultArray.push(newObject)
