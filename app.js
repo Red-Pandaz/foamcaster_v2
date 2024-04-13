@@ -15,27 +15,27 @@ async function main(){
         let currentBlock = await provider.getBlockWithTransactions('latest');
         let currentTimestamp = Date.now();
         let [lastBlock, lastTimestamp] = await getLastTimestamp();
-        let toBlock = currentBlock.number
-        let fromBlock = lastBlock + 1
-        
+        let fromBlock = lastBlock + 1;
+        let toBlock = currentBlock.number;
         let cronTime = 1800000;
         let txMinimum = 50000;
         let castsToSend = [];
 
         if(!currentBlock){
             console.log("Current block could not be aquired from provider.")
-            return
+            return;
         }
         if(!lastBlock){
             console.log("Last block could not be acquired from database")
-            return
+            return;
         }
         if((currentTimestamp - lastTimestamp) > (cronTime * 1.80)){
-            console.log("Too much time in between timestamps, program risks recasting")
-            updateTimestamp(currentBlock.number, [])
-            return
+            console.log("Too much time in between timestamps, program risks recasting");
+            updateTimestamp(currentBlock.number, []);
+            return;
         }
-   
+        console.log("START BLOCK: " + fromBlock)
+        console.log("END BLOCK: " + toBlock)
 
   
         let uniOutgoingXfers = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.UNI_BUY_FILTER, fromBlock, toBlock);
@@ -86,15 +86,12 @@ async function main(){
       
 
         let sentCastArray = await sendCasts(castsToSend);
-     
         await updateTimestamp(currentBlock.number, sentCastArray);
        
         return;
     }catch(err){
-        console.log(err)
+        console.log(err);
     }
 }
-
 main()
-
 module.exports = { main };
