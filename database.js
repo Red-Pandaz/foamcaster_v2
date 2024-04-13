@@ -117,7 +117,6 @@ async function pruneDatabaseAndEmail() {
 
 
 async function sendEmail(prunedData) {
-
     let transporter = nodemailer.createTransport({
         host: 'smtp.office365.com',
         port: 587,
@@ -130,11 +129,9 @@ async function sendEmail(prunedData) {
     });
 
     let minBlockHeight = findMinMaxBlockHeight()
-    console.log(minBlockHeight)
     let maxBlockHeight = findMinMaxBlockHeight()
-    console.log(maxBlockHeight)
+
   
-    
     let mailOptions = {
         from: `${process.env.DB_OUTGOING_EMAIL_ADDRESS}`,
         to: `${process.env.DB_INCOMING_EMAIL_ADDRESS}`,
@@ -148,14 +145,13 @@ async function sendEmail(prunedData) {
         ]
     };
 
-    // Send email
     let info = await transporter.sendMail(mailOptions);
     console.log('Email sent:', info.messageId);
 }
 
 function findMinMaxBlockHeight(prunedData) {
     if (prunedData.length === 0) {
-        return null; // Return null if prunedData is empty
+        return null;
     }
 
     let minBlockHeight = prunedData[0].blockstamp;

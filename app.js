@@ -84,10 +84,9 @@ async function main(){
         handleUnfilteredTransfers(allTransfers, castsToSend, "$FOAM transferred on Optimism: https://optimistic.etherscan.io/tx/", txMinimum);
 
 
-        let sentCastArray = sendCasts(castsToSend);
+        let sentCastArray = await sendCasts(castsToSend);
         // await updateTimestamp(currentBlock.number, sentCastArray);
-        await pruneDatabaseAndEmail()
-
+       
         return;
     }catch(err){
         console.log(err)
@@ -95,3 +94,5 @@ async function main(){
 }
 
 main()
+
+module.exports = { main };
