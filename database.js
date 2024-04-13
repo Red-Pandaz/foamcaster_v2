@@ -3,20 +3,19 @@ const dotenv = require("dotenv").config();
 
 // Connection URI
 const uri = `${process.env.DB_URI}`;
-const dbName = "Foam"
-const collectionName ="Timestamps"
+const dbName = "Foamcaster-V2"
+const collectionName = "Snapshots"
 
 // Create a new MongoClient
 let client = new MongoClient(uri)
 
 
 
-function updateTimestamp(blockHeight, tweetIndex, txArray){
+function updateTimestamp(blockHeight, castArray){
     let newTimestampObj = {}
     newTimestampObj.timestamp = Date.now();
     newTimestampObj.blockstamp = blockHeight;
-    newTimestampObj.tweets = tweetIndex;
-    newTimestampObj.transactions = txArray
+    newTimestampObj.casts = castArray
     pushFoamDB(newTimestampObj)
     
 }
