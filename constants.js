@@ -22,7 +22,7 @@ const FOAM_TOKEN_ABI = JSON.parse(require('./abi/foamtoken').result);
 const UNI_V3_ABI = JSON.parse(require('./abi/univ3pool.json').result);
 const UNI_V3_LIQUIDITY_ABI = JSON.parse(require('./abi/univ3liquidity.json').result);
 const VELEDROME_POOL_ABI = JSON.parse(require('./abi/veledromepoolabi.json').result);
-const VELEDROME_LIQUIDITY_ABI = JSON.parse(require('./abi/veledromeLiquidityabi.json').result);
+const VELEDROME_LIQUIDITY_ABI = JSON.parse(require('./abi/veledromeliquidityabi.json').result);
 
 //contracts
 const FOAM_TOKEN_CONTRACT = new ethers.Contract(FOAM_ADDRESS, FOAM_TOKEN_ABI, provider);
