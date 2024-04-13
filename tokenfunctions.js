@@ -144,7 +144,6 @@ async function filterAggregatorEvents(events, resultArray, messageTemplate, txMi
 
 
 
-
 function handleUnfilteredTransfers(transfers, resultArray, messageTemplate, txMinimum){
     for(let transfer of transfers){
         if(resultArray.some(obj => obj.transactionHash === transfer.transactionHash)){
@@ -159,13 +158,10 @@ function handleUnfilteredTransfers(transfers, resultArray, messageTemplate, txMi
         let newObject = {
             transactionHash: transfer.transactionHash,
             blockHeight: transfer.blockNumber,
-            value: txValue,
+            value: parseInt(ethers.BigNumber.from(txValue).toString()),
             cast: castMessage
         }
         resultArray.push(newObject)
-        
-        
-    
     
     }
 }
@@ -175,6 +171,6 @@ module.exports = {
     filterMintBurns,
     filterAggregatorEvents,
     filterExchangeTransfers,
-    handleUnfilteredTransfers, 
+    handleUnfilteredTransfers,
 };
 

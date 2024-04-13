@@ -1,6 +1,7 @@
 const ethers = require('ethers')
 const dotenv = require("dotenv").config()
 const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${process.env.INFURA_API}`)
+
 //addresses
 const FOAM_ADDRESS = '0x79E6c6b6aABA4432FAbacB30cC0C879D8f3E598e';
 const FOAM_MINT_BURN_ADDRESS = '0x0000000000000000000000000000000000000000';
@@ -17,11 +18,11 @@ const OKX_ROUTER_ADDRESSES = ['0x443EF018e182d409bcf7f794d409bCea4C73C2C7', '0xf
 const VELEDROME_REWARDS_ADDRESS = '0x0583A0a9fD4AF1A93b515A8B57D33B39B2941306';
 
 //ABIs
-const FOAM_TOKEN_ABI = JSON.parse(require('./ABI/foamtoken').result);
-const UNI_V3_ABI = JSON.parse(require('./ABI/univ3pool.json').result);
-const UNI_V3_LIQUIDITY_ABI = JSON.parse(require('./ABI/univ3liquidity.json').result);
-const VELEDROME_POOL_ABI = JSON.parse(require('./ABI/veledromePoolABI.json').result);
-const VELEDROME_LIQUIDITY_ABI = JSON.parse(require('./ABI/veledromeLiquidityABI.json').result);
+const FOAM_TOKEN_ABI = JSON.parse(require('./abi/foamtoken').result);
+const UNI_V3_ABI = JSON.parse(require('./abi/univ3pool.json').result);
+const UNI_V3_LIQUIDITY_ABI = JSON.parse(require('./abi/univ3liquidity.json').result);
+const VELEDROME_POOL_ABI = JSON.parse(require('./abi/veledromepoolabi.json').result);
+const VELEDROME_LIQUIDITY_ABI = JSON.parse(require('./abi/veledromeLiquidityabi.json').result);
 
 //contracts
 const FOAM_TOKEN_CONTRACT = new ethers.Contract(FOAM_ADDRESS, FOAM_TOKEN_ABI, provider);
@@ -56,7 +57,9 @@ const BURN_EVENT_FILTER = FOAM_TOKEN_CONTRACT.filters.Burn()
 const MINT_TRANSFER_FILTER = FOAM_TOKEN_CONTRACT.filters.Transfer(FOAM_MINT_BURN_ADDRESS, null)
 const BURN_TRANSFER_FILTER = FOAM_TOKEN_CONTRACT.filters.Transfer(null, FOAM_MINT_BURN_ADDRESS)
 
+const ARBITRAGE_TRADE_FILTER = FOAM_TOKEN_CONTRACT.filters.Transfer( [ UNI_V3_ADDRESS, VELEDROME_POOL_ADDRESS ], [ UNI_V3_ADDRESS, VELEDROME_POOL_ADDRESS ], null )
 
+//exporting all constants
 module.exports = {
     FOAM_ADDRESS,
     FOAM_MINT_BURN_ADDRESS,
@@ -97,5 +100,6 @@ module.exports = {
     MINT_EVENT_FILTER,
     BURN_EVENT_FILTER,
     MINT_TRANSFER_FILTER,
-    BURN_TRANSFER_FILTER
+    BURN_TRANSFER_FILTER,
+    ARBITRAGE_TRADE_FILTER
 };

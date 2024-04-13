@@ -6,8 +6,6 @@ const dotenv = require("dotenv").config();
 const uri = `${process.env.DB_URI}`;
 const dbName = "Foamcaster-V2"
 const collectionName = "Snapshots"
-// const dbName = "Foam"
-// const collectionName = "Timestamps"
 
 // Create a new MongoClient
 let client = new MongoClient(uri)
@@ -38,7 +36,6 @@ async function getLastTimestamp() {
         const collection = db.collection(collectionName);
         let lastObject = await collection.find().sort({ timestamp: -1 }).limit(1).toArray();
         if (lastObject.length > 0) {
-            console.log(lastObject[0])
             let lastBlockHeight = lastObject[0].blockstamp; // Access blockstamp property
             let lastTimestamp = lastObject[0].timestamp;
             return [lastBlockHeight, lastTimestamp];
@@ -91,8 +88,7 @@ async function pruneDatabaseAndEmail() {
         // Get a reference to the database
         const db = client.db(dbName);
         
-        // Perform pruning operation (e.g., remove old data)
-        // Example: Remove documents older than a week
+        // Logic for weekly database pruning
         const oneWeekAgo = new Date();
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
         await db.collection(collectionName).deleteMany({ timestamp: { $lt: oneWeekAgo } });
@@ -168,13 +164,6 @@ function findMinMaxBlockHeight(prunedData) {
     }
     return { min: minBlockHeight, max: maxBlockHeight };
 }
-
-
-
-
-
-
-
 
 
 module.exports = { updateTimestamp, getLastTimestamp, pruneDatabaseAndEmail };

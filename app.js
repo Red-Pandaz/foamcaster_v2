@@ -1,9 +1,9 @@
-//Test with cron job using previous blocks
-//Add database pruning function
+//TODO: Maybe figure out a way to show arbitrage data without spamming feed
+    //  Look into a way to neatly wrap up all API requests in error handlers
 
 const ethers = require('ethers')
 const dotenv = require("dotenv").config()
-const {filterMintBurns, filterAggregatorEvents, filterExchangeTransfers, handleUnfilteredTransfers} = require('./tokenfunctions.js')
+const {filterMintBurns, filterAggregatorEvents, filterExchangeTransfers, handleUnfilteredTransfers, handleArbitrageTransfers} = require('./tokenfunctions.js')
 const { updateTimestamp, getLastTimestamp, pruneDatabaseAndEmail } = require('./database.js')
 const { sendCasts } = require('./farcaster.js')
 const constants = require('./constants.js');
@@ -17,6 +17,7 @@ async function main(){
         let [lastBlock, lastTimestamp] = await getLastTimestamp();
         let toBlock = currentBlock.number
         let fromBlock = lastBlock + 1
+        
         let cronTime = 1800000;
         let txMinimum = 50000;
         let castsToSend = [];
@@ -34,7 +35,7 @@ async function main(){
             updateTimestamp(currentBlock.number, [])
             return
         }
-
+   
 
   
         let uniOutgoingXfers = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.UNI_BUY_FILTER, fromBlock, toBlock);
@@ -57,7 +58,7 @@ async function main(){
         let burnTransfers = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.BURN_TRANSFER_FILTER, fromBlock, toBlock);
 
         let allTransfers = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.FOAM_TRANSFER_FILTER, fromBlock, toBlock);
-
+    
 
         filterMintBurns(mintTransfers, mintEvents, castsToSend, "$FOAM bridged to Optimism from L1: https://optimistic.etherscan.io/tx/", txMinimum);
         filterMintBurns(burnTransfers, burnEvents, castsToSend, "$FOAM bridged to L1 from Optimism: https://optimistic.etherscan.io/tx/", txMinimum);
@@ -80,12 +81,13 @@ async function main(){
         await filterExchangeTransfers(uniIncomingXfers, constants.UNI_V3_LIQUIDITY_ADDRESS, constants.UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM added to liquidity on UniV3: https://optimistic.etherscan.io/tx/", "IncreaseLiquidity", txMinimum);
         await filterExchangeTransfers(veledromeOutgoingXfers, constants.VELEDROME_LIQUIDITY_TOKEN, constants.VELEDROME_LIQUIDITY_ABI, castsToSend, "$FOAM removed from liquidity on Veledrome: https://optimistic.etherscan.io/tx/", "Burn", txMinimum);
         await filterExchangeTransfers(veledromeIncomingXfers, constants.VELEDROME_LIQUIDITY_TOKEN, constants.VELEDROME_LIQUIDITY_ABI, castsToSend, "$FOAM added to liquidity on Veledrome on UniV3: https://optimistic.etherscan.io/tx/", "Mint", txMinimum);
-        
-        handleUnfilteredTransfers(allTransfers, castsToSend, "$FOAM transferred on Optimism: https://optimistic.etherscan.io/tx/", txMinimum);
 
+        handleUnfilteredTransfers(allTransfers, castsToSend, "$FOAM transferred on Optimism: https://optimistic.etherscan.io/tx/", txMinimum);
+      
 
         let sentCastArray = await sendCasts(castsToSend);
-        // await updateTimestamp(currentBlock.number, sentCastArray);
+     
+        await updateTimestamp(currentBlock.number, sentCastArray);
        
         return;
     }catch(err){
