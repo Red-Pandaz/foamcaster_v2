@@ -1,14 +1,10 @@
 //Test with cron job using previous blocks
-//Integrate with database
 //Add database pruning function
-//Dont add any logic for casting until it's ready to be deployed
-//IMPORTANT: make sure to add a check to see if the last timestamp was longer than the cron interval
-    //If so, do nothing except try to update the object
 
 const ethers = require('ethers')
 const dotenv = require("dotenv").config()
 const {filterMintBurns, filterAggregatorEvents, filterExchangeTransfers, handleUnfilteredTransfers} = require('./tokenfunctions.js')
-const { updateTimestamp, getLastTimestamp } = require('./database.js')
+const { updateTimestamp, getLastTimestamp, pruneDatabaseAndEmail } = require('./database.js')
 const { sendCasts } = require('./farcaster.js')
 const constants = require('./constants.js');
 const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${process.env.INFURA_API}`)
@@ -17,16 +13,28 @@ const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.
 async function main(){
     try{
         let currentBlock = await provider.getBlockWithTransactions('latest');
-        // let [lastBlock, lastTimeStamp] = await getLastTimestamp()constants.
         let currentTimestamp = Date.now();
         let [lastBlock, lastTimestamp] = await getLastTimestamp();
-        console.log("Last Block: ", lastBlock)
-        console.log("Current Timestamp - Last Timestamp: ", currentTimestamp - lastTimestamp)
-        let toBlock = lastBlock + 1
-        let fromBlock = currentBlock.number;
+        let toBlock = currentBlock.number
+        let fromBlock = lastBlock + 1
         let cronTime = 1800000;
         let txMinimum = 50000;
         let castsToSend = [];
+
+        if(!currentBlock){
+            console.log("Current block could not be aquired from provider.")
+            return
+        }
+        if(!lastBlock){
+            console.log("Last block could not be acquired from database")
+            return
+        }
+        if((currentTimestamp - lastTimestamp) > (cronTime * 1.80)){
+            console.log("Too much time in between timestamps, program risks recasting")
+            updateTimestamp(currentBlock.number, [])
+            return
+        }
+
 
   
         let uniOutgoingXfers = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.UNI_BUY_FILTER, fromBlock, toBlock);
@@ -76,8 +84,9 @@ async function main(){
         handleUnfilteredTransfers(allTransfers, castsToSend, "$FOAM transferred on Optimism: https://optimistic.etherscan.io/tx/", txMinimum);
 
 
-        // let sentCastArray = sendCasts(castsToSend);
-        // updateTimestamp(currentBlock.number, sentCastArray);
+        let sentCastArray = sendCasts(castsToSend);
+        // await updateTimestamp(currentBlock.number, sentCastArray);
+        await pruneDatabaseAndEmail()
 
         return;
     }catch(err){
