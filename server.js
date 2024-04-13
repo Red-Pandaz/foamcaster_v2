@@ -6,44 +6,29 @@ const { main } = require('./app.js');
 const { pruneDatabaseAndEmail } = require('./database.js');
 const schedule = require('node-schedule');
 
-const mainJob = schedule.scheduleJob('*/30 * * * *', function(){
+crequire('dotenv').config();
+const { main } = require('./app.js');
+const { pruneDatabaseAndEmail } = require('./database.js');
+const schedule = require('node-schedule');
+
+const mainJob = schedule.scheduleJob('*/30 * * * *', async function(){
   console.log("Running scheduled half-hourly event check");
-  function runMain() {
-      return new Promise((resolve, reject) => {
-          try {
-              main();
-              resolve();
-          } catch (error) {
-              reject(error);
-          }
-      });
+  try {
+    await main();
+    console.log("Main function executed successfully");
+  } catch (error) {
+    console.error("Error running main:", error);
+    return;
   }
-  (async () => {
-      try {
-          await runMain();
-      } catch (error) {
-          console.error("Error running main:", error);
-      }
-  });
 });
 
-const pruneJob = schedule.scheduleJob('15 0 * * 0', function(){
-    console.log("Running scheduled weekly prune");
-    function runPrune() {
-        return new Promise((resolve, reject) => {
-            try {
-                pruneDatabaseAndEmail();
-                resolve();
-            } catch (error) {
-                reject(error);
-            }
-        });
-    }
-    (async () => {
-        try {
-            await runPrune();
-        } catch (error) {
-            console.error("Error running prune:", error);
-        }
-    })();
+const pruneJob = schedule.scheduleJob('15 0 * * 0', async function(){
+  console.log("Running scheduled weekly prune");
+  try {
+    await pruneDatabaseAndEmail();
+    console.log("Pruning complete");
+  } catch (error) {
+    console.error("Error running prune:", error);
+    return;
+  }
 });
