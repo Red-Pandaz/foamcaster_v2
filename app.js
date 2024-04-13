@@ -1,13 +1,14 @@
-//TODO: Maybe figure out a way to show arbitrage data without spamming feed
+//TODO: Restructure directory according to best practices
     //  Look into a way to neatly wrap up all API requests in error handlers
+    //  Add comments to the codebase 
 
-const ethers = require('ethers')
-const dotenv = require("dotenv").config()
-const {filterMintBurns, filterAggregatorEvents, filterExchangeTransfers, handleUnfilteredTransfers, handleArbitrageTransfers} = require('./tokenfunctions.js')
-const { updateTimestamp, getLastTimestamp, pruneDatabaseAndEmail } = require('./database.js')
-const { sendCasts } = require('./farcaster.js')
-const constants = require('./constants.js');
-const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${process.env.INFURA_API}`)
+const ethers = require('ethers');
+const dotenv = require("dotenv").config();
+const {filterMintBurns, filterAggregatorEvents, filterExchangeTransfers, handleUnfilteredTransfers, handleArbitrageTransfers} = require('./functions/tokenfunctions.js');
+const { updateTimestamp, getLastTimestamp, pruneDatabaseAndEmail } = require('./database/database.js');
+const { sendCasts } = require('./farcaster/farcaster.js');
+const constants = require('./constants/constants.js');
+const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${process.env.INFURA_API}`);
 
 
 async function main(){
@@ -22,7 +23,7 @@ async function main(){
         let castsToSend = [];
 
         if(!currentBlock){
-            console.log("Current block could not be aquired from provider.")
+            console.log("Current block could not be aquired from provider.");
             return;
         }
         if(!lastBlock){
@@ -34,10 +35,9 @@ async function main(){
             updateTimestamp(currentBlock.number, []);
             return;
         }
-        console.log("START BLOCK: " + fromBlock)
-        console.log("END BLOCK: " + toBlock)
+        console.log("START BLOCK: " + fromBlock);
+        console.log("END BLOCK: " + toBlock);
 
-  
         let uniOutgoingXfers = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.UNI_BUY_FILTER, fromBlock, toBlock);
         let uniIncomingXfers = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.UNI_SELL_FILTER, fromBlock, toBlock);
         let veledromeOutgoingXfers = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.VELEDROME_BUY_FILTER, fromBlock, toBlock);
@@ -91,6 +91,7 @@ async function main(){
         return;
     }catch(err){
         console.log(err);
+        return;
     }
 }
 

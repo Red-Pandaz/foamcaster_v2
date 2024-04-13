@@ -3,12 +3,7 @@
 
 require('dotenv').config();
 const { main } = require('./app.js');
-const { pruneDatabaseAndEmail } = require('./database.js');
-const schedule = require('node-schedule');
-
-crequire('dotenv').config();
-const { main } = require('./app.js');
-const { pruneDatabaseAndEmail } = require('./database.js');
+const { pruneDatabaseAndEmail } = require('./database/database.js');
 const schedule = require('node-schedule');
 
 const mainJob = schedule.scheduleJob('*/30 * * * *', async function(){

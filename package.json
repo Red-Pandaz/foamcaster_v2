@@ -5,6 +5,7 @@
         "ethers": "^5.7.2",
         "mongosh": "2.2.2",
         "node-schedule": "^2.1.1",
+        "nodemailer": "^6.9.13",
         "request": "^2.88.2"
     },
     "scripts": {
