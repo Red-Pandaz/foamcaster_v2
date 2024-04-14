@@ -6,6 +6,7 @@ const ethers = require('ethers');
 const dotenv = require("dotenv").config();
 const {filterMintBurns, filterAggregatorEvents, filterExchangeTransfers, handleUnfilteredTransfers, handleArbitrageTransfers} = require('./functions/tokenfunctions.js');
 const { updateTimestamp, getLastTimestamp, pruneDatabaseAndEmail } = require('./database/database.js');
+const { retryApiCall, getTransferData, processTransferData } = require('./utils/apiutils.js');
 const { sendCasts } = require('./farcaster/farcaster.js');
 const constants = require('./constants/constants.js');
 const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${process.env.INFURA_API}`);
@@ -91,16 +92,10 @@ async function main(){
         } catch (error) {
             console.error('Error:', error);
         }
-    
-
-
-   
-
         filterMintBurns(mintTransfers, mintEvents, castsToSend, "$FOAM bridged to Optimism from L1: https://optimistic.etherscan.io/tx/", txMinimum);
         filterMintBurns(burnTransfers, burnEvents, castsToSend, "$FOAM bridged to L1 from Optimism: https://optimistic.etherscan.io/tx/", txMinimum);
         handleUnfilteredTransfers(allTransfers, castsToSend, "$FOAM transferred on Optimism: https://optimistic.etherscan.io/tx/", txMinimum);
        
-
         let sentCastArray = await sendCasts(castsToSend);
         await updateTimestamp(currentBlock.number, sentCastArray);
        
