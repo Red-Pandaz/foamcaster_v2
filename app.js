@@ -38,50 +38,66 @@ async function main(){
         console.log("START BLOCK: " + fromBlock);
         console.log("END BLOCK: " + toBlock);
 
-        let uniOutgoingXfers = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.UNI_BUY_FILTER, fromBlock, toBlock);
-        let uniIncomingXfers = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.UNI_SELL_FILTER, fromBlock, toBlock);
-        let veledromeOutgoingXfers = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.VELEDROME_BUY_FILTER, fromBlock, toBlock);
-        let veledromeIncomingXfers = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.VELEDROME_SELL_FILTER, fromBlock, toBlock);
+            const filterConstants = [
+            { name: "uniOutgoingXfers", filter: constants.UNI_BUY_FILTER },
+            { name: "uniIncomingXfers", filter: constants.UNI_SELL_FILTER },
+            { name: "veledromeOutgoingXfers", filter: constants.VELEDROME_BUY_FILTER },
+            { name: "veledromeIncomingXfers", filter: constants.VELEDROME_SELL_FILTER },
+            { name: "oneInchBuys", filter: constants.ONE_INCH_BUY_FILTER },
+            { name: "oneInchSells", filter: constants.ONE_INCH_SELL_FILTER },
+            { name: "odosBuys", filter: constants.ODOS_BUY_FILTER },
+            { name: "odosSells", filter: constants.ODOS_SELL_FILTER },
+            { name: "paraswapBuys", filter: constants.PARASWAP_BUY_FILTER },
+            { name: "paraswapSells", filter: constants.PARASWAP_SELL_FILTER },
+            { name: "okxBuys", filter: constants.OKX_BUY_FILTER },
+            { name: "okxSells", filter: constants.OKX_SELL_FILTER },
+            { name: "mintEvents", filter: constants.MINT_EVENT_FILTER },
+            { name: "mintTransfers", filter: constants.MINT_TRANSFER_FILTER },
+            { name: "burnEvents", filter: constants.BURN_EVENT_FILTER },
+            { name: "burnTransfers", filter: constants.BURN_TRANSFER_FILTER },
+            { name: "allTransfers", filter: constants.FOAM_TRANSFER_FILTER }
+        ];
+       
+        try {
+            const results = await  getTransferData(filterConstants, fromBlock, toBlock);
+            console.log('Filter function results:', results);
+        } catch (error) {
+            console.error('Error:', error);
+        }
 
-        let oneInchBuys = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.ONE_INCH_BUY_FILTER, fromBlock, toBlock);
-        let oneInchSells = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.ONE_INCH_SELL_FILTER, fromBlock, toBlock);
-        let odosBuys = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.ODOS_BUY_FILTER, fromBlock, toBlock);
-        let odosSells = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.ODOS_SELL_FILTER, fromBlock, toBlock);
-        let paraswapBuys = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.PARASWAP_BUY_FILTER, fromBlock, toBlock);
-        let paraswapSells = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.PARASWAP_SELL_FILTER, fromBlock, toBlock);
-        let okxBuys = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.OKX_BUY_FILTER, fromBlock, toBlock);
-        let okxSells = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.OKX_SELL_FILTER, fromBlock, toBlock);
-
-        let mintEvents = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.MINT_EVENT_FILTER, fromBlock, toBlock);
-        let mintTransfers = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.MINT_TRANSFER_FILTER, fromBlock, toBlock);
-        let burnEvents = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.BURN_EVENT_FILTER, fromBlock, toBlock);
-        let burnTransfers = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.BURN_TRANSFER_FILTER, fromBlock, toBlock);
-
-        let allTransfers = await constants.FOAM_TOKEN_CONTRACT.queryFilter(constants.FOAM_TRANSFER_FILTER, fromBlock, toBlock);
+     //Aggregator events MUST be caught before exchange events get processed
+     const unprocessedCalls = [
+        { name: "oneInchBuys", func: filterAggregatorEvents, args: [filterFunctionCalls.oneInchBuys, castsToSend, "$FOAM bought via 1inch: https://optimistic.etherscan.io/tx/", txMinimum] },
+        { name: "oneInchSells", func: filterAggregatorEvents, args: [filterFunctionCalls.oneInchSells, castsToSend, "$FOAM sold via 1inch: https://optimistic.etherscan.io/tx/", txMinimum] },
+        { name: "odosBuys", func: filterAggregatorEvents, args: [filterFunctionCalls.odosBuys, castsToSend, "$FOAM bought via Odos: https://optimistic.etherscan.io/tx/", txMinimum] },
+        { name: "odosSells", func: filterAggregatorEvents, args: [filterFunctionCalls.odosSells, castsToSend, "$FOAM sold via Odos: https://optimistic.etherscan.io/tx/", txMinimum] },
+        { name: "paraswapBuys", func: filterAggregatorEvents, args: [filterFunctionCalls.paraswapBuys, castsToSend, "$FOAM bought via Paraswap: https://optimistic.etherscan.io/tx/", txMinimum] },
+        { name: "paraswapSells", func: filterAggregatorEvents, args: [filterFunctionCalls.paraswapSells, castsToSend, "$FOAM sold via Paraswap: https://optimistic.etherscan.io/tx/", txMinimum] },
+        { name: "okxBuys", func: filterAggregatorEvents, args: [filterFunctionCalls.okxBuys, castsToSend, "$FOAM bought via OKX: https://optimistic.etherscan.io/tx/", txMinimum] },
+        { name: "okxSells", func: filterAggregatorEvents, args: [filterFunctionCalls.okxSells, castsToSend, "$FOAM sold via OKX: https://optimistic.etherscan.io/tx/", txMinimum] },
+        { name: "uniOutgoingXfers", func: filterExchangeTransfers, args: [filterFunctionCalls.uniOutgoingXfers, constants.UNI_V3_ADDRESS, constants.UNI_V3_ABI, castsToSend, "$FOAM bought on UniV3: https://optimistic.etherscan.io/tx/", "Swap", txMinimum] },
+        { name: "uniIncomingXfers", func: filterExchangeTransfers, args: [filterFunctionCalls.uniIncomingXfers, constants.UNI_V3_ADDRESS, constants.UNI_V3_ABI, castsToSend, "$FOAM sold on UniV3: https://optimistic.etherscan.io/tx/", "Swap", txMinimum] },
+        { name: "veledromeOutgoingXfers", func: filterExchangeTransfers, args: [filterFunctionCalls.veledromeOutgoingXfers, constants.VELEDROME_POOL_ADDRESS, constants.VELEDROME_POOL_ABI, castsToSend, "$FOAM bought on Veledrome: https://optimistic.etherscan.io/tx/", "Swap", txMinimum] },
+        { name: "veledromeIncomingXfers", func: filterExchangeTransfers, args: [filterFunctionCalls.veledromeIncomingXfers, constants.VELEDROME_POOL_ADDRESS, constants.VELEDROME_POOL_ABI, castsToSend, "$FOAM sold on Veledrome: https://optimistic.etherscan.io/tx/", "Swap", txMinimum] },
+        { name: "uniOutgoingXfers2", func: filterExchangeTransfers, args: [filterFunctionCalls.uniOutgoingXfers, constants.UNI_V3_LIQUIDITY_ADDRESS, constants.UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM removed from liquidity on UniV3: https://optimistic.etherscan.io/tx/", "DecreaseLiquidity", txMinimum] },
+        { name: "uniIncomingXfers2", func: filterExchangeTransfers, args: [filterFunctionCalls.uniIncomingXfers, constants.UNI_V3_LIQUIDITY_ADDRESS, constants.UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM added to liquidity on UniV3: https://optimistic.etherscan.io/tx/", "IncreaseLiquidity", txMinimum] },
+        { name: "veledromeOutgoingXfers2", func: filterExchangeTransfers, args: [filterFunctionCalls.veledromeOutgoingXfers, constants.VELEDROME_LIQUIDITY_TOKEN, constants.VELEDROME_LIQUIDITY_ABI, castsToSend, "$FOAM removed from liquidity on Veledrome: https://optimistic.etherscan.io/tx/", "Burn", txMinimum] },
+        { name: "veledromeIncomingXfers2", func: filterExchangeTransfers, args: [filterFunctionCalls.veledromeIncomingXfers, constants.VELEDROME_LIQUIDITY_TOKEN, constants.VELEDROME_LIQUIDITY_ABI, castsToSend, "$FOAM added to liquidity on Veledrome on UniV3: https://optimistic.etherscan.io/tx/", "Mint", txMinimum] }
+    ];
+        
+        try {
+            const results = await  processTransferData(unprocessedCalls);
+            console.log('Filter function results:', results);
+        } catch (error) {
+            console.error('Error:', error);
+        }
     
+
+
+   
 
         filterMintBurns(mintTransfers, mintEvents, castsToSend, "$FOAM bridged to Optimism from L1: https://optimistic.etherscan.io/tx/", txMinimum);
         filterMintBurns(burnTransfers, burnEvents, castsToSend, "$FOAM bridged to L1 from Optimism: https://optimistic.etherscan.io/tx/", txMinimum);
-
-        //Aggregator events MUST be caught before exchange events get processed
-        await filterAggregatorEvents(oneInchBuys, castsToSend, "$FOAM bought via 1inch: https://optimistic.etherscan.io/tx/", txMinimum);
-        await filterAggregatorEvents(oneInchSells, castsToSend, "$FOAM sold via 1inch: https://optimistic.etherscan.io/tx/", txMinimum);
-        await filterAggregatorEvents(odosBuys, castsToSend, "$FOAM bought via Odos: https://optimistic.etherscan.io/tx/", txMinimum);
-        await filterAggregatorEvents(odosSells, castsToSend, "$FOAM sold via Odos: https://optimistic.etherscan.io/tx/", txMinimum);
-        await filterAggregatorEvents(paraswapBuys, castsToSend, "$FOAM bought via Paraswap: https://optimistic.etherscan.io/tx/", txMinimum);
-        await filterAggregatorEvents(paraswapSells, castsToSend, "$FOAM sold via Paraswap: https://optimistic.etherscan.io/tx/", txMinimum);
-        await filterAggregatorEvents(okxBuys, castsToSend, "$FOAM bought via OKX: https://optimistic.etherscan.io/tx/", txMinimum);
-        await filterAggregatorEvents(okxSells, castsToSend, "$FOAM sold via OKX: https://optimistic.etherscan.io/tx/", txMinimum);
-
-        await filterExchangeTransfers(uniOutgoingXfers, constants.UNI_V3_ADDRESS, constants.UNI_V3_ABI, castsToSend, "$FOAM bought on UniV3: https://optimistic.etherscan.io/tx/", "Swap", txMinimum);
-        await filterExchangeTransfers(uniIncomingXfers, constants.UNI_V3_ADDRESS, constants.UNI_V3_ABI, castsToSend, "$FOAM sold on UniV3: https://optimistic.etherscan.io/tx/", "Swap", txMinimum);
-        await filterExchangeTransfers(veledromeOutgoingXfers, constants.VELEDROME_POOL_ADDRESS, constants.VELEDROME_POOL_ABI, castsToSend, "$FOAM bought on Veledrome: https://optimistic.etherscan.io/tx/", "Swap", txMinimum);
-        await filterExchangeTransfers(veledromeIncomingXfers, constants.VELEDROME_POOL_ADDRESS, constants.VELEDROME_POOL_ABI, castsToSend, "$FOAM sold on Veledrome: https://optimistic.etherscan.io/tx/", "Swap", txMinimum);
-        await filterExchangeTransfers(uniOutgoingXfers, constants.UNI_V3_LIQUIDITY_ADDRESS, constants.UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM removed from liquidity on UniV3: https://optimistic.etherscan.io/tx/", "DecreaseLiquidity", txMinimum);
-        await filterExchangeTransfers(uniIncomingXfers, constants.UNI_V3_LIQUIDITY_ADDRESS, constants.UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM added to liquidity on UniV3: https://optimistic.etherscan.io/tx/", "IncreaseLiquidity", txMinimum);
-        await filterExchangeTransfers(veledromeOutgoingXfers, constants.VELEDROME_LIQUIDITY_TOKEN, constants.VELEDROME_LIQUIDITY_ABI, castsToSend, "$FOAM removed from liquidity on Veledrome: https://optimistic.etherscan.io/tx/", "Burn", txMinimum);
-        await filterExchangeTransfers(veledromeIncomingXfers, constants.VELEDROME_LIQUIDITY_TOKEN, constants.VELEDROME_LIQUIDITY_ABI, castsToSend, "$FOAM added to liquidity on Veledrome on UniV3: https://optimistic.etherscan.io/tx/", "Mint", txMinimum);
-
         handleUnfilteredTransfers(allTransfers, castsToSend, "$FOAM transferred on Optimism: https://optimistic.etherscan.io/tx/", txMinimum);
        
 
