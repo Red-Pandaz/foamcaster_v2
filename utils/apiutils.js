@@ -1,5 +1,5 @@
 const ethers = require('ethers')
-const constants = require('./constants/constants.js');
+const constants = require('../constants/constants.js');
 
 async function retryApiCall(apiCall, maxRetries = 5, delayBetweenRetries = 1000) {
     let retries = 0;
@@ -28,6 +28,7 @@ async function getTransferData(filterConstants, fromBlock, toBlock) {
         try {
             const apiCall = () => constants.FOAM_TOKEN_CONTRACT.queryFilter(filter, fromBlock, toBlock);
             results[name] = await retryApiCall(apiCall);
+            console.log(results[name])
         } catch (error) {
             console.error(`Error processing ${name}: ${error}`);
             // Handle the error if needed

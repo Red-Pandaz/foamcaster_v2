@@ -1,7 +1,7 @@
 const { MongoClient } = require('mongodb');
 const nodemailer = require('nodemailer');
 const dotenv = require("dotenv").config();
-const { retryApiCall, getTransferData, processTransferData } = require('./utils/apiutils.js');
+const { retryApiCall, getTransferData, processTransferData } = require('../utils/apiutils.js');
 
 // Connection URI
 const uri = `${process.env.DB_URI}`;
@@ -169,7 +169,7 @@ function findMinMaxBlockHeight(prunedData) {
             maxBlockHeight = currentBlockHeight;
         }
     }
-    return { min: minBlockHeight, max: maxBlockHeight };
+    return { min: min, max: max };
 }
 
 
