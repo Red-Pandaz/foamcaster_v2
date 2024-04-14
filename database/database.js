@@ -82,7 +82,7 @@ async function pruneDatabaseAndEmail() {
     try {
         // Connect to MongoDB if not already connected
         if (!client || !client.topology || !client.topology.isConnected()) {
-            client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+            client = new MongoClient(uri);
             await client.connect();
             console.log('Connected to MongoDB');
         }
@@ -114,42 +114,48 @@ async function pruneDatabaseAndEmail() {
 
 
 async function sendEmail(prunedData) {
-    let transporter = nodemailer.createTransport({
-        host: 'smtp.office365.com',
-        port: 587,
-        secure: false, // true for 465, false for other ports
-        auth: {
-            user: `${process.env.DB_OUTGOING_EMAIL_ADDRESS}`,
-            pass: `${process.env.DB_OUTGOING_EMAIL_PASSWORD}`
-        },
+    try{
+        let transporter = nodemailer.createTransport({
+            host: 'smtp.office365.com',
+            port: 587,
+            secure: false, // true for 465, false for other ports
+            auth: {
+                user: `${process.env.DB_OUTGOING_EMAIL_ADDRESS}`,
+                pass: `${process.env.DB_OUTGOING_EMAIL_PASSWORD}`
+            },
 
-    });
+        });
 
-    let minBlockHeight = findMinMaxBlockHeight()
-    let maxBlockHeight = findMinMaxBlockHeight()
+        let minBlockHeight = findMinMaxBlockHeight()
+        let maxBlockHeight = findMinMaxBlockHeight()
 
-  
-    let mailOptions = {
-        from: `${process.env.DB_OUTGOING_EMAIL_ADDRESS}`,
-        to: `${process.env.DB_INCOMING_EMAIL_ADDRESS}`,
-        subject: `FOAMcaster_V2 Pruned Data From Blocks ${minBlockHeight}-${maxBlockHeight}`,
-        text: `Attached is pruned data from blocks ${minBlockHeight}-${maxBlockHeight}`,
-        attachments: [
-            {
-                filename: `blocks_${minBlockHeight}_${maxBlockHeight}.json`,
-                content: JSON.stringify(prunedData, null, 2)
-            }
-        ]
-    };
+    
+        let mailOptions = {
+            from: `${process.env.DB_OUTGOING_EMAIL_ADDRESS}`,
+            to: `${process.env.DB_INCOMING_EMAIL_ADDRESS}`,
+            subject: `FOAMcaster_V2 Pruned Data From Blocks ${minBlockHeight}-${maxBlockHeight}`,
+            text: `Attached is pruned data from blocks ${minBlockHeight}-${maxBlockHeight}`,
+            attachments: [
+                {
+                    filename: `blocks_${minBlockHeight}_${maxBlockHeight}.json`,
+                    content: JSON.stringify(prunedData, null, 2)
+                }
+            ]
+        };
 
-    let info = await transporter.sendMail(mailOptions);
-    console.log('Email sent:', info.messageId);
+        let info = await transporter.sendMail(mailOptions);
+        console.log('Email sent:', info.messageId);
+    }catch(err){
+        console.log(err)
+    }
 }
 
 function findMinMaxBlockHeight(prunedData) {
-    if (prunedData.length === 0) {
-        return null;
+    if (!prunedData || !Array.isArray(prunedData) || prunedData.length === 0) {
+        console.log("No data to email.");
+        return;
     }
+
 
     let minBlockHeight = prunedData[0].blockstamp;
     let maxBlockHeight = prunedData[0].blockstamp;

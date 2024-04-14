@@ -1,6 +1,6 @@
 const ethers = require('ethers')
 const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${process.env.INFURA_API}`)
-const constants = require('./constants.js');
+const constants = require('../constants/constants.js');
 
 function filterMintBurns(eventArray1, eventArray2, resultArray, messageTemplate, txMinimum) {
     if(!eventArray1 || !eventArray2){

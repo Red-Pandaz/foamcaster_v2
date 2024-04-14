@@ -18,11 +18,11 @@ const OKX_ROUTER_ADDRESSES = ['0x443EF018e182d409bcf7f794d409bCea4C73C2C7', '0xf
 const VELEDROME_REWARDS_ADDRESS = '0x0583A0a9fD4AF1A93b515A8B57D33B39B2941306';
 
 //ABIs
-const FOAM_TOKEN_ABI = JSON.parse(require('./abi/foamtoken').result);
-const UNI_V3_ABI = JSON.parse(require('./abi/univ3pool.json').result);
-const UNI_V3_LIQUIDITY_ABI = JSON.parse(require('./abi/univ3liquidity.json').result);
-const VELEDROME_POOL_ABI = JSON.parse(require('./abi/veledromepoolabi.json').result);
-const VELEDROME_LIQUIDITY_ABI = JSON.parse(require('./abi/veledromeliquidityabi.json').result);
+const FOAM_TOKEN_ABI = JSON.parse(require('../abi/foamtoken').result);
+const UNI_V3_ABI = JSON.parse(require('../abi/univ3pool.json').result);
+const UNI_V3_LIQUIDITY_ABI = JSON.parse(require('../abi/univ3liquidity.json').result);
+const VELEDROME_POOL_ABI = JSON.parse(require('../abi/veledromepoolabi.json').result);
+const VELEDROME_LIQUIDITY_ABI = JSON.parse(require('../abi/veledromeliquidityabi.json').result);
 
 //contracts
 const FOAM_TOKEN_CONTRACT = new ethers.Contract(FOAM_ADDRESS, FOAM_TOKEN_ABI, provider);

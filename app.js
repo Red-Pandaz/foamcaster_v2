@@ -83,7 +83,7 @@ async function main(){
         await filterExchangeTransfers(veledromeIncomingXfers, constants.VELEDROME_LIQUIDITY_TOKEN, constants.VELEDROME_LIQUIDITY_ABI, castsToSend, "$FOAM added to liquidity on Veledrome on UniV3: https://optimistic.etherscan.io/tx/", "Mint", txMinimum);
 
         handleUnfilteredTransfers(allTransfers, castsToSend, "$FOAM transferred on Optimism: https://optimistic.etherscan.io/tx/", txMinimum);
-      
+       
 
         let sentCastArray = await sendCasts(castsToSend);
         await updateTimestamp(currentBlock.number, sentCastArray);
