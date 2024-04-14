@@ -30,7 +30,7 @@ async function main(){
             console.log("Last block could not be acquired from database")
             return;
         }
-        if((currentTimestamp - lastTimestamp) > (cronTime * 1.80)){
+        if((currentTimestamp - lastTimestamp) > (cronTime * 3.75)){
             console.log("Too much time in between timestamps, program risks recasting");
             updateTimestamp(currentBlock.number, []);
             return;
