@@ -10,7 +10,7 @@ function sendCasts(castArray){
             continue;
         }
         console.log(cast);
-        sent casts out with a short delay 
+        // sent casts out with a short delay 
         setTimeout(sentArray.push(cast), 5000);
         sdk.postCast({ text: castObject.cast, signer_uuid: process.env.SIGNER_UUID }, { api_key: process.env.NEYNAR_API_KEY })
         .then(({ data }) => console.log(data))
