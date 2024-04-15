@@ -43,6 +43,11 @@ async function processTransferData(unprocessedTransfers) {
     const results = {};
 
     for (const { name, func, args } of unprocessedTransfers) {
+        // Skip processing if args is undefined
+        if (!args[0]) {
+            console.error(`Error processing ${name}: Arguments are undefined`);
+            continue; // Skip to the next iteration
+        }
         try {
             results[name] = await retryApiCall(() => func(...args));
         } catch (error) {

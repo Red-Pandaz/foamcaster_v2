@@ -103,14 +103,16 @@ async function filterAggregatorEvents(events, resultArray, messageTemplate, txMi
         }
         let receipt = await provider.getTransactionReceipt(event.transactionHash);
         let logs = receipt.logs;
-        for (let i = 0; i < logs.length; i++) {
-            if (logs[i].address !== constants.FOAM_ADDRESS) {
-                logs.splice(i, 1);
-                i--; 
-            }
-        }
+        console.log(logs.length);
+
+        // Filter logs for the specified address
+        logs = logs.filter(log => log.address === constants.FOAM_ADDRESS);
+
+        console.log(logs);
+
         const addresses = event.topics.slice(1); 
         addresses.forEach(address => {
+            console.log(address);
             if (!(address in netTransfer)) {
                 netTransfer[address] = 0;
             }
@@ -120,26 +122,31 @@ async function filterAggregatorEvents(events, resultArray, messageTemplate, txMi
                 netTransfer[address] += parseInt(event.data, 16) / 10**18; // Assuming data is hexadecimal
             }
         });
-        let transferTotal = 0;
-        const values = Object.values(netTransfer);
-        values.forEach(value => {
-            if (value > 0) {
-                transferTotal += value;
-            }
-        }); 
-    
-        if (transferTotal >= txMinimum) {
-            let formattedTxValue = Math.round(transferTotal)
-            let castMessage = `${formattedTxValue} ${messageTemplate}${event.transactionHash}`;
-            let newObject = {
-                transactionHash: event.transactionHash,
-                blockHeight: event.blockNumber,
-                value: formattedTxValue,
-                cast: castMessage
-            };
-            resultArray.push(newObject);
-        }
+       
     }
+   console.log(netTransfer)
+    let transferTotal = 0;
+    const values = Object.values(netTransfer);
+    values.forEach(value => {
+    
+        if (value > 0) {
+            transferTotal += value;
+        }
+    }); 
+
+    if (transferTotal >= txMinimum) {
+        let formattedTxValue = Math.round(transferTotal)
+        let castMessage = `${formattedTxValue} ${messageTemplate}${events[0].transactionHash}`;
+        let newObject = {
+            transactionHash: events[0].transactionHash,
+            blockHeight: events[0].blockNumber,
+            value: formattedTxValue,
+            cast: castMessage
+        };
+        resultArray.push(newObject);
+        console.log(newObject)
+    }
+
 }
 
 
