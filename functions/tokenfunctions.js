@@ -103,22 +103,16 @@ async function filterAggregatorEvents(events, resultArray, messageTemplate, txMi
         }
         let receipt = await provider.getTransactionReceipt(event.transactionHash);
         let logs = receipt.logs;
-        console.log(logs.length)
-        for (let i = logs.length - 1; i >= 0; i--) {
-            if (logs[i].address !== constants.FOAM_ADDRESS) {
-              logs.splice(i, 1);
+        console.log(logs.length);
 
-            }
-          
-        }
-        console.log(logs)
+        // Filter logs for the specified address
+        logs = logs.filter(log => log.address === constants.FOAM_ADDRESS);
 
+        console.log(logs);
 
         const addresses = event.topics.slice(1); 
-   
         addresses.forEach(address => {
-            console.log
- 
+            console.log(address);
             if (!(address in netTransfer)) {
                 netTransfer[address] = 0;
             }
@@ -129,31 +123,32 @@ async function filterAggregatorEvents(events, resultArray, messageTemplate, txMi
             }
         });
        
-    console.log(netTransfer)
-        let transferTotal = 0;
-        const values = Object.values(netTransfer);
-        values.forEach(value => {
-        
-            if (value > 0) {
-                transferTotal += value;
-            }
-        }); 
-
-        if (transferTotal >= txMinimum) {
-            let formattedTxValue = Math.round(transferTotal)
-            let castMessage = `${formattedTxValue} ${messageTemplate}${events[0].transactionHash}`;
-            let newObject = {
-                transactionHash: events[0].transactionHash,
-                blockHeight: events[0].blockNumber,
-                value: formattedTxValue,
-                cast: castMessage
-            };
-            resultArray.push(newObject);
-            console.log(newObject)
+    }
+   console.log(netTransfer)
+    let transferTotal = 0;
+    const values = Object.values(netTransfer);
+    values.forEach(value => {
+    
+        if (value > 0) {
+            transferTotal += value;
         }
+    }); 
+
+    if (transferTotal >= txMinimum) {
+        let formattedTxValue = Math.round(transferTotal)
+        let castMessage = `${formattedTxValue} ${messageTemplate}${events[0].transactionHash}`;
+        let newObject = {
+            transactionHash: events[0].transactionHash,
+            blockHeight: events[0].blockNumber,
+            value: formattedTxValue,
+            cast: castMessage
+        };
+        resultArray.push(newObject);
+        console.log(newObject)
     }
 
 }
+
 
 
 function handleUnfilteredTransfers(transfers, resultArray, messageTemplate, txMinimum){
