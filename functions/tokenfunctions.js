@@ -90,7 +90,6 @@ async function filterExchangeTransfers(eventArray, contractAddress, contractABI,
 
 
 
-
 async function filterAggregatorEvents(events, resultArray, messageTemplate, txMinimum) {
     if (!events) {
         return;
