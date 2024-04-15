@@ -3,6 +3,7 @@ const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.
 const constants = require('../constants/constants.js');
 
 function filterMintBurns(eventArray1, eventArray2, resultArray, messageTemplate, txMinimum) {
+    console.log("starting filterMintBurns")
     if(!eventArray1 || !eventArray2){
         return
     }
@@ -27,6 +28,7 @@ function filterMintBurns(eventArray1, eventArray2, resultArray, messageTemplate,
            
         }
     };
+    console.log("ending filterMintBurns")
     return filteredEvents;
 }
 
@@ -35,6 +37,7 @@ function filterMintBurns(eventArray1, eventArray2, resultArray, messageTemplate,
 
 
 async function filterExchangeTransfers(eventArray, contractAddress, contractABI, resultArray, messageTemplate, contractMethod, txMinimum) {
+    console.log("starting filterExchangeTransfers")
     if(!eventArray){
         return
     }
@@ -85,6 +88,7 @@ async function filterExchangeTransfers(eventArray, contractAddress, contractABI,
             }
         }
     }
+console.log("ending filterExchangeTransfers")
 }
 
 
@@ -92,6 +96,7 @@ async function filterExchangeTransfers(eventArray, contractAddress, contractABI,
 
 
 async function filterAggregatorEvents(events, resultArray, messageTemplate, txMinimum) {
+    console.log("starting filterAggregatorEvents")
     if (!events) {
         return;
     }
@@ -101,41 +106,58 @@ async function filterAggregatorEvents(events, resultArray, messageTemplate, txMi
         if (resultArray.some(obj => obj.transactionHash === event.transactionHash)) {
             continue;
         }
+      
+        
         let receipt = await provider.getTransactionReceipt(event.transactionHash);
         let logs = receipt.logs;
-        console.log(logs.length);
+   
+  
 
         // Filter logs for the specified address
         logs = logs.filter(log => log.address === constants.FOAM_ADDRESS);
 
-        console.log(logs);
+        // Iterate over filtered logs
+        for (let log of logs) {
+          
+               //disregarding methods that aren't Transfer 
+            if (log.topics[0] !== constants.FOAM_TOKEN_XFER_METHOD){
+                continue;
+            }
+            const [sender, receiver] = log.topics.slice(1); // Extract sender and receiver addresses
 
-        const addresses = event.topics.slice(1); 
-        addresses.forEach(address => {
-            console.log(address);
-            if (!(address in netTransfer)) {
-                netTransfer[address] = 0;
+            // Initialize net transfers for sender and receiver if not already present
+            if (!(sender in netTransfer)) {
+                netTransfer[sender] = 0;
             }
-            if (address === event.topics[1]) {
-                netTransfer[address] -= parseInt(event.data, 16) / 10**18; // Assuming data is hexadecimal
-            } else {
-                netTransfer[address] += parseInt(event.data, 16) / 10**18; // Assuming data is hexadecimal
+            if (!(receiver in netTransfer)) {
+                netTransfer[receiver] = 0;
             }
-        });
-       
+        
+            let logValue = (parseInt(log.data, 16)) * Math.pow(10, -18)
+            console.log(log)
+            console.log(logValue)
+            // Update net transfers based on sender and receiver
+            netTransfer[sender] -= logValue; // Subtract from sender
+            netTransfer[receiver] += logValue; // Add to receiver
+            console.log(netTransfer[sender])
+            console.log(netTransfer[receiver])
+        }
     }
-   console.log(netTransfer)
+
     let transferTotal = 0;
     const values = Object.values(netTransfer);
+    
     values.forEach(value => {
     
         if (value > 0) {
             transferTotal += value;
         }
     }); 
-
+    console.log(transferTotal)
     if (transferTotal >= txMinimum) {
         let formattedTxValue = Math.round(transferTotal)
+        console.log(formattedTxValue)
+      
         let castMessage = `${formattedTxValue} ${messageTemplate}${events[0].transactionHash}`;
         let newObject = {
             transactionHash: events[0].transactionHash,
@@ -144,14 +166,15 @@ async function filterAggregatorEvents(events, resultArray, messageTemplate, txMi
             cast: castMessage
         };
         resultArray.push(newObject);
-        console.log(newObject)
-    }
 
+    }
+console.log("ending filterAggregatorEvents")
 }
 
 
 
 function handleUnfilteredTransfers(transfers, resultArray, messageTemplate, txMinimum){
+    console.log("starting handleUnfilteredTransfers")
     for(let transfer of transfers){
         if(resultArray.some(obj => obj.transactionHash === transfer.transactionHash)){
             continue;
@@ -171,6 +194,7 @@ function handleUnfilteredTransfers(transfers, resultArray, messageTemplate, txMi
         resultArray.push(newObject)
     
     }
+console.log("ending handleUnfilteredTransfers")
 }
 
 
