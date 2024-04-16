@@ -17,27 +17,27 @@ async function main(){
     try{
         let currentBlock = await getBlockWithRetry(provider)
         let currentTimestamp = Date.now();
-        // let [lastBlock, lastTimestamp] = await getLastTimestamp();
-        // let fromBlock = lastBlock + 1;
-        let fromBlock = currentBlock.number - 200000
-        let toBlock = currentBlock.number;
+        let [lastBlock, lastTimestamp] = await getLastTimestamp();
+        let fromBlock = lastBlock + 1;
+        // let fromBlock = currentBlock.number - 200000
+        // let toBlock = currentBlock.number;
         let cronTime = 1800000;
-        let txMinimum = 100;
+        let txMinimum = 50000;
         let castsToSend = [];
 
-        // if(!currentBlock){
-        //     console.log("Current block could not be aquired from provider.");
-        //     return;
-        // }
-        // if(!lastBlock){
-        //     console.log("Last block could not be acquired from database")
-        //     return;
-        // }
-        // if((currentTimestamp - lastTimestamp) > (cronTime * 3.75)){
-        //     console.log("Too much time in between timestamps, program risks recasting");
-        //     updateTimestamp(currentBlock.number, []);
-        //     return;
-        // }
+        if(!currentBlock){
+            console.log("Current block could not be aquired from provider.");
+            return;
+        }
+        if(!lastBlock){
+            console.log("Last block could not be acquired from database")
+            return;
+        }
+        if((currentTimestamp - lastTimestamp) > (cronTime * 3.75)){
+            console.log("Too much time in between timestamps, program risks recasting");
+            updateTimestamp(currentBlock.number, []);
+            return;
+        }
         console.log("START BLOCK: " + fromBlock);
         console.log("END BLOCK: " + toBlock);
 
@@ -126,4 +126,4 @@ async function main(){
     console.log("here")
     return
 }
-main()
+
