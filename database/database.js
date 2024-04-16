@@ -1,6 +1,7 @@
 const { MongoClient } = require('mongodb');
 const nodemailer = require('nodemailer');
 const dotenv = require("dotenv").config();
+const { retryApiCall, getTransferData, processTransferData } = require('../utils/apiutils.js');
 
 // Connection URI
 const uri = `${process.env.DB_URI}`;
@@ -11,40 +12,47 @@ const collectionName = "Snapshots";
 let client = new MongoClient(uri);
 
 
+async function updateTimestamp(blockHeight, castArray) {
+    let newTimestampObj = {
+        timestamp: Date.now(),
+        blockstamp: blockHeight,
+        casts: castArray
+    };
 
-function updateTimestamp(blockHeight, castArray){
-    let newTimestampObj = {};
-    newTimestampObj.timestamp = Date.now();
-    newTimestampObj.blockstamp = blockHeight;
-    newTimestampObj.casts = castArray;
-    console.log(newTimestampObj)
-    pushFoamDB(newTimestampObj);
+    try {
+        await retryApiCall(() => pushFoamDB(newTimestampObj));
+    } catch (error) {
+        console.error('Error updating timestamp:', error);
+        // Handle the error if needed
+    }
 }
-
 
 async function getLastTimestamp() {
     try {
-        if (!client || !client.topology || !client.topology.isConnected()) {
-            // Create a new MongoClient instance if not already created or connected
-            client = new MongoClient(uri);
-            await client.connect();
-            console.log("Connected to the database");
-        }
-        // Get a reference to the database
-        const db = client.db(dbName);
-        
-        // Find and return most recent block height
-        const collection = db.collection(collectionName);
-        let lastObject = await collection.find().sort({ timestamp: -1 }).limit(1).toArray();
-        if (lastObject.length > 0) {
-            let lastBlockHeight = lastObject[0].blockstamp; // Access blockstamp property
-            let lastTimestamp = lastObject[0].timestamp;
-            return [lastBlockHeight, lastTimestamp];
-        } else {
-            return null; 
-        }
+        return await retryApiCall(getLastTimestampInternal);
     } catch (error) {
-        console.error('Error reading documents:', error);
+        console.error('Error getting last timestamp:', error);
+        // Handle the error if needed
+    }
+}
+
+async function getLastTimestampInternal() {
+    if (!client || !client.topology || !client.topology.isConnected()) {
+        client = new MongoClient(uri);
+        await client.connect();
+        console.log("Connected to the database");
+    }
+
+    const db = client.db(dbName);
+    const collection = db.collection(collectionName);
+    let lastObject = await collection.find().sort({ timestamp: -1 }).limit(1).toArray();
+
+    if (lastObject.length > 0) {
+        let lastBlockHeight = lastObject[0].blockstamp;
+        let lastTimestamp = lastObject[0].timestamp;
+        return [lastBlockHeight, lastTimestamp];
+    } else {
+        return null;
     }
 }
 
@@ -77,40 +85,33 @@ async function pushFoamDB(timestamp) {
     }
 }
 
-// MongoDB pruning function
 async function pruneDatabaseAndEmail() {
     try {
-        // Connect to MongoDB if not already connected
-        if (!client || !client.topology || !client.topology.isConnected()) {
-            client = new MongoClient(uri);
-            await client.connect();
-            console.log('Connected to MongoDB');
-        }
-        // Get a reference to the database
-        const db = client.db(dbName);
-        
-        // Logic for weekly database pruning
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        await db.collection(collectionName).deleteMany({ timestamp: { $lt: oneWeekAgo } });
-        
-        // Get the pruned data (optional)
-        const prunedData = await db.collection(collectionName).find({ timestamp: { $lt: oneWeekAgo } }).toArray();
-        
-        // Email the pruned data
-        await sendEmail(prunedData);
-        
-        console.log('Pruning complete');
+        await retryApiCall(pruneDatabaseAndEmailInternal);
     } catch (error) {
-        console.error('Error pruning database:', error);
-    } finally {
-        // Close the connection
-        if (client && client.topology && client.topology.isConnected()) {
-            await client.close();
-            console.log("Connection closed");
-        }
+        console.error('Error pruning database and sending email:', error);
+        // Handle the error if needed
     }
 }
+
+async function pruneDatabaseAndEmailInternal() {
+    if (!client || !client.topology || !client.topology.isConnected()) {
+        client = new MongoClient(uri);
+        await client.connect();
+        console.log('Connected to MongoDB');
+    }
+
+    const db = client.db(dbName);
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    await db.collection(collectionName).deleteMany({ timestamp: { $lt: oneWeekAgo } });
+
+    const prunedData = await db.collection(collectionName).find({ timestamp: { $lt: oneWeekAgo } }).toArray();
+    await sendEmail(prunedData);
+
+    console.log('Pruning complete');
+}
+
 
 
 async function sendEmail(prunedData) {
@@ -125,19 +126,18 @@ async function sendEmail(prunedData) {
             },
 
         });
+        let { min, max } = findMinMaxBlockHeight(prunedData);
 
-        let minBlockHeight = findMinMaxBlockHeight()
-        let maxBlockHeight = findMinMaxBlockHeight()
 
     
         let mailOptions = {
             from: `${process.env.DB_OUTGOING_EMAIL_ADDRESS}`,
             to: `${process.env.DB_INCOMING_EMAIL_ADDRESS}`,
-            subject: `FOAMcaster_V2 Pruned Data From Blocks ${minBlockHeight}-${maxBlockHeight}`,
-            text: `Attached is pruned data from blocks ${minBlockHeight}-${maxBlockHeight}`,
+            subject: `FOAMcaster_V2 Pruned Data From Blocks ${min}-${max}`,
+            text: `Attached is pruned data from blocks ${min}-${max}`,
             attachments: [
                 {
-                    filename: `blocks_${minBlockHeight}_${maxBlockHeight}.json`,
+                    filename: `blocks_${min}_${max}.json`,
                     content: JSON.stringify(prunedData, null, 2)
                 }
             ]
@@ -157,8 +157,8 @@ function findMinMaxBlockHeight(prunedData) {
     }
 
 
-    let minBlockHeight = prunedData[0].blockstamp;
-    let maxBlockHeight = prunedData[0].blockstamp;
+    let { min, max } = findMinMaxBlockHeight(prunedData);
+
 
     for (let i = 1; i < prunedData.length; i++) {
         let currentBlockHeight = prunedData[i].blockstamp;
@@ -169,7 +169,7 @@ function findMinMaxBlockHeight(prunedData) {
             maxBlockHeight = currentBlockHeight;
         }
     }
-    return { min: minBlockHeight, max: maxBlockHeight };
+    return { min: min, max: max };
 }
 
 

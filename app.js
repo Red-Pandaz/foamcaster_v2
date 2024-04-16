@@ -1,13 +1,14 @@
 //TODO:
     //  Test new error handlers for tokenfunctions and database code
+    // Test to make sure everything works
     //  Look into Google Cloud Function integrations
     //  Add comments to the codebase 
 
 const ethers = require('ethers');
 const dotenv = require("dotenv").config();
-const {filterMintBurns, filterAggregatorEvents, filterExchangeTransfers, handleUnfilteredTransfers, handleArbitrageTransfers} = require('./functions/tokenfunctions.js');
+const {filterMintBurns, filterAggregatorEvents, filterExchangeTransfers, handleUnfilteredTransfers} = require('./functions/tokenfunctions.js');
 const { updateTimestamp, getLastTimestamp, pruneDatabaseAndEmail } = require('./database/database.js');
-const { retryApiCall, getTransferData, processTransferData} = require('./utils/apiutils.js');
+const { retryApiCall, getTransferData, processTransferData, getBlockWithRetry} = require('./utils/apiutils.js');
 const { sendCasts } = require('./farcaster/farcaster.js');
 const constants = require('./constants/constants.js');
 const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${process.env.INFURA_API}`);
@@ -15,9 +16,9 @@ const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.
 
 async function main(){
     try{
-        let currentBlock = await provider.getBlockWithTransactions('latest');
+        let currentBlock = await getBlockWithRetry(provider)
         let currentTimestamp = Date.now();
-        let [lastBlock, lastTimestamp] = await getLastTimestamp();
+        // let [lastBlock, lastTimestamp] = await getLastTimestamp();
         // let fromBlock = lastBlock + 1;
         let fromBlock = currentBlock.number - 100000
         let toBlock = currentBlock.number;
@@ -25,19 +26,19 @@ async function main(){
         let txMinimum = 1000;
         let castsToSend = [];
 
-        if(!currentBlock){
-            console.log("Current block could not be aquired from provider.");
-            return;
-        }
-        if(!lastBlock){
-            console.log("Last block could not be acquired from database")
-            return;
-        }
-        if((currentTimestamp - lastTimestamp) > (cronTime * 3.75)){
-            console.log("Too much time in between timestamps, program risks recasting");
-            updateTimestamp(currentBlock.number, []);
-            return;
-        }
+        // if(!currentBlock){
+        //     console.log("Current block could not be aquired from provider.");
+        //     return;
+        // }
+        // if(!lastBlock){
+        //     console.log("Last block could not be acquired from database")
+        //     return;
+        // }
+        // if((currentTimestamp - lastTimestamp) > (cronTime * 3.75)){
+        //     console.log("Too much time in between timestamps, program risks recasting");
+        //     updateTimestamp(currentBlock.number, []);
+        //     return;
+        // }
         console.log("START BLOCK: " + fromBlock);
         console.log("END BLOCK: " + toBlock);
 
@@ -111,15 +112,13 @@ async function main(){
     
         // Selecting mintTransfers, mintEvents, burnTransfers, burnEvents, and allTransfers from the results object
     
-
+        // Selecting minransfers, mintEvents, burnTransfers, burnEvents, and allTransfers from the results object
         filterMintBurns(mintTransfers, mintEvents, castsToSend, "$FOAM bridged to Optimism from L1: https://optimistic.etherscan.io/tx/", txMinimum);
         filterMintBurns(burnTransfers, burnEvents, castsToSend, "$FOAM bridged to L1 from Optimism: https://optimistic.etherscan.io/tx/", txMinimum);
      
         handleUnfilteredTransfers(allTransfers, castsToSend, "$FOAM transferred on Optimism: https://optimistic.etherscan.io/tx/", txMinimum);
       
-        console.log("here")
-        // console.log(castsToSend)
-        console.log("here")
+        console.log(castsToSend)
         // let sentCastArray = await sendCasts(castsToSend);
         // await updateTimestamp(currentBlock.number, sentCastArray);
     }catch(err){
@@ -128,5 +127,4 @@ async function main(){
     }
     return
 }
-console.log("here")
 main()

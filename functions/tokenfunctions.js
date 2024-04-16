@@ -2,6 +2,7 @@ const ethers = require('ethers')
 const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${process.env.INFURA_API}`)
 const constants = require('../constants/constants.js');
 
+// There is a bit of redundancy here but transfers to and from the mint/burn address are double checked for actual mint/burn events
 function filterMintBurns(eventArray1, eventArray2, resultArray, messageTemplate, txMinimum) {
     if(!eventArray1 || !eventArray2){
         return
@@ -31,9 +32,7 @@ function filterMintBurns(eventArray1, eventArray2, resultArray, messageTemplate,
 }
 
 
-
-
-
+// Handling transfers to and from Uniswap and Veledrome. This means checking transfers against Swap and Liquidity events
 async function filterExchangeTransfers(eventArray, contractAddress, contractABI, resultArray, messageTemplate, contractMethod, txMinimum) {
     if(!eventArray){
         return
@@ -60,6 +59,7 @@ async function filterExchangeTransfers(eventArray, contractAddress, contractABI,
         if(event.args.to === constants.veledromeRewardsAddress){
             continue;
         }
+        // Confirming non-existence of event's tx hash before proceeding
         if (resultArray.some(obj => obj.transactionHash === event.transactionHash)) {
             continue outerLoop;
         }
@@ -88,70 +88,79 @@ async function filterExchangeTransfers(eventArray, contractAddress, contractABI,
 }
 
 
-
-
-
-async function filterAggregatorEvents(events, resultArray, messageTemplate, txMinimum) {
+// The first function that is called after initially gathering all relevant events.
+// This must be invoked before general exchange transfer handling or the aggregator aspect of the tx will be overlooked
+async function filterAggregatorEvents(events, resultArray, messageTemplate, txMinimum){ 
+    // Instantly returns if no events to process
     if (!events) {
         return;
     }
-    
-    let netTransfer = {};
     for (let event of events) {
+        let netTransfer = {}; 
+        //continues if tx hash is found in array
         if (resultArray.some(obj => obj.transactionHash === event.transactionHash)) {
             continue;
         }
+        // Getting transaction receipt for event  
         let receipt = await provider.getTransactionReceipt(event.transactionHash);
         let logs = receipt.logs;
 
 
-        // Filter logs for the specified address
+
+
+
+        // Selecting only events interacting with the FOAM contract
         logs = logs.filter(log => log.address === constants.FOAM_ADDRESS);
+        for (let log of logs) {
 
-
-
-        const addresses = logs.map(log => log.topics.slice(1));
-        console.log(addresses)
-        addresses.forEach(address => {
-
-            if (!(address in netTransfer)) {
-                netTransfer[address] = 0;
+            // This is a very important check. Without this non-Transfer FOAM contract events like Approve can interfere with calculations
+            if (log.topics[0] !== constants.FOAM_TOKEN_XFER_METHOD) {
+                continue;
             }
-            if (address === event.topics[1]) {
-                netTransfer[address] -= parseInt(event.data, 16) / 10**18; // Assuming data is hexadecimal
-            } else {
-                netTransfer[address] += parseInt(event.data, 16) / 10**18; // Assuming data is hexadecimal
+
+            const [sender, receiver] = log.topics.slice(1); 
+            if (!(sender in netTransfer)) {
+                netTransfer[sender] = 0;
+            }
+            if (!(receiver in netTransfer)) {
+                netTransfer[receiver] = 0;
+            }
+
+            let logValue = (parseInt(log.data, 16)) * Math.pow(10, -18);
+
+            // Update net transfers based on sender and receiver
+            netTransfer[sender] -= logValue; 
+            netTransfer[receiver] += logValue; 
+        }
+
+        // Calculating the total amount of FOAM transfered by adding up only recieving numbers
+        // This is a very big part of why aggregator transactions have to be handled separately
+        // If for example someone used an aggregator and used two exchanges each with 80% of the tx threshold it would be overlooked
+        let transferTotal = 0;
+        const values = Object.values(netTransfer);
+        values.forEach(value => {
+            if (value > 0) {
+                transferTotal += value;
             }
         });
+
        
-    }
-   console.log(netTransfer)
-    let transferTotal = 0;
-    const values = Object.values(netTransfer);
-    values.forEach(value => {
-    
-        if (value > 0) {
-            transferTotal += value;
+        if (transferTotal >= txMinimum) {
+            let formattedTxValue = Math.round(transferTotal);
+            reFormattedTxValue = formattedTxValue.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",")
+            let castMessage = `${reFormattedTxValue} ${messageTemplate}${event.transactionHash}`;
+            let newObject = {
+                transactionHash: event.transactionHash,
+                blockHeight: event.blockNumber,
+                value: formattedTxValue,
+                cast: castMessage
+            };
+            resultArray.push(newObject);
         }
-    }); 
-
-    if (transferTotal >= txMinimum) {
-        let formattedTxValue = Math.round(transferTotal)
-        let castMessage = `${formattedTxValue} ${messageTemplate}${events[0].transactionHash}`;
-        let newObject = {
-            transactionHash: events[0].transactionHash,
-            blockHeight: events[0].blockNumber,
-            value: formattedTxValue,
-            cast: castMessage
-        };
-        resultArray.push(newObject);
-        console.log(newObject)
     }
-
 }
 
-
-
+//After processing all notable events, anything that does not have a txnHash in the cast array is treated as a regular tx
 function handleUnfilteredTransfers(transfers, resultArray, messageTemplate, txMinimum){
     for(let transfer of transfers){
         if(resultArray.some(obj => obj.transactionHash === transfer.transactionHash)){
@@ -170,8 +179,8 @@ function handleUnfilteredTransfers(transfers, resultArray, messageTemplate, txMi
             cast: castMessage
         }
         resultArray.push(newObject)
-    
     }
+
 }
 
 

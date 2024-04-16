@@ -17,6 +17,7 @@ const PARASWAP_ROUTER_ADDRESS = '0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57';
 const OKX_ROUTER_ADDRESSES = ['0x443EF018e182d409bcf7f794d409bCea4C73C2C7', '0xf332761c673b59B21fF6dfa8adA44d78c12dEF09'];
 const VELEDROME_REWARDS_ADDRESS = '0x0583A0a9fD4AF1A93b515A8B57D33B39B2941306';
 
+
 //ABIs
 const FOAM_TOKEN_ABI = JSON.parse(require('../abi/foamtoken').result);
 const UNI_V3_ABI = JSON.parse(require('../abi/univ3pool.json').result);
@@ -24,8 +25,9 @@ const UNI_V3_LIQUIDITY_ABI = JSON.parse(require('../abi/univ3liquidity.json').re
 const VELEDROME_POOL_ABI = JSON.parse(require('../abi/veledromepoolabi.json').result);
 const VELEDROME_LIQUIDITY_ABI = JSON.parse(require('../abi/veledromeliquidityabi.json').result);
 
-//contracts
+//contracts/methods
 const FOAM_TOKEN_CONTRACT = new ethers.Contract(FOAM_ADDRESS, FOAM_TOKEN_ABI, provider);
+const FOAM_TOKEN_XFER_METHOD = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
 const UNI_V3_TOKEN_CONTRACT = new ethers.Contract(UNI_V3_ADDRESS, UNI_V3_ABI, provider);
 const UNI_V3_LIQUIDITY_CONTRACT = new ethers.Contract(UNI_V3_LIQUIDITY_ADDRESS, UNI_V3_LIQUIDITY_ABI, provider);
 const VELEDROME_POOL_CONTRACT = new ethers.Contract(VELEDROME_POOL_ADDRESS, VELEDROME_POOL_ABI, provider);
@@ -101,5 +103,6 @@ module.exports = {
     BURN_EVENT_FILTER,
     MINT_TRANSFER_FILTER,
     BURN_TRANSFER_FILTER,
-    ARBITRAGE_TRADE_FILTER
+    ARBITRAGE_TRADE_FILTER,
+    FOAM_TOKEN_XFER_METHOD
 };
