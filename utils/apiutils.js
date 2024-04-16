@@ -60,7 +60,6 @@ async function processTransferData(unprocessedTransfers) {
             throw error
         }
     }
-    console.log("ending processTransferData")
     return results;
 }
 
