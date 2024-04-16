@@ -86,7 +86,7 @@ async function main(){
                 allTransfers
             } = filterResults
         
-     //Aggregator events MUST be caught before exchange events get processed
+     //Aggregator transfers MUST be caught before exchange transfers get processed
      const unprocessedCalls = [
         { name: "oneInchBuys", func: filterAggregatorEvents, args: [oneInchBuys, castsToSend, "$FOAM bought via 1inch: https://optimistic.etherscan.io/tx/", txMinimum] },
         { name: "oneInchSells", func: filterAggregatorEvents, args: [oneInchSells, castsToSend, "$FOAM sold via 1inch: https://optimistic.etherscan.io/tx/", txMinimum] },
@@ -96,6 +96,7 @@ async function main(){
         { name: "paraswapSells", func: filterAggregatorEvents, args: [paraswapSells, castsToSend, "$FOAM sold via Paraswap: https://optimistic.etherscan.io/tx/", txMinimum] },
         { name: "okxBuys", func: filterAggregatorEvents, args: [okxBuys, castsToSend, "$FOAM bought via OKX: https://optimistic.etherscan.io/tx/", txMinimum] },
         { name: "okxSells", func: filterAggregatorEvents, args: [okxSells, castsToSend, "$FOAM sold via OKX: https://optimistic.etherscan.io/tx/", txMinimum] },
+    //Now we can process exchange transfers
         { name: "uniOutgoingXfers", func: filterExchangeTransfers, args: [uniOutgoingXfers, constants.UNI_V3_ADDRESS, constants.UNI_V3_ABI, castsToSend, "$FOAM bought on UniV3: https://optimistic.etherscan.io/tx/", "Swap", txMinimum] },
         { name: "uniIncomingXfers", func: filterExchangeTransfers, args: [uniIncomingXfers, constants.UNI_V3_ADDRESS, constants.UNI_V3_ABI, castsToSend, "$FOAM sold on UniV3: https://optimistic.etherscan.io/tx/", "Swap", txMinimum] },
         { name: "veledromeOutgoingXfers", func: filterExchangeTransfers, args: [veledromeOutgoingXfers, constants.VELEDROME_POOL_ADDRESS, constants.VELEDROME_POOL_ABI, castsToSend, "$FOAM bought on Veledrome: https://optimistic.etherscan.io/tx/", "Swap", txMinimum] },
@@ -110,17 +111,14 @@ async function main(){
         // console.log('Filter function results:', filterResults2);
     
         // Selecting minransfers, mintEvents, burnTransfers, burnEvents, and allTransfers from the results object
-    
-
         filterMintBurns(mintTransfers, mintEvents, castsToSend, "$FOAM bridged to Optimism from L1: https://optimistic.etherscan.io/tx/", txMinimum);
         filterMintBurns(burnTransfers, burnEvents, castsToSend, "$FOAM bridged to L1 from Optimism: https://optimistic.etherscan.io/tx/", txMinimum);
-     
         handleUnfilteredTransfers(allTransfers, castsToSend, "$FOAM transferred on Optimism: https://optimistic.etherscan.io/tx/", txMinimum);
 
-        // console.log(castsToSend)
+        console.log(castsToSend)
 
-        // let sentCastArray = await sendCasts(castsToSend);
-        // await updateTimestamp(currentBlock.number, sentCastArray);
+        let sentCastArray = await sendCasts(castsToSend);
+        await updateTimestamp(currentBlock.number, sentCastArray);
     }catch(err){
     console.log(err)
     return

@@ -1,8 +1,11 @@
 const ethers = require('ethers')
 const constants = require('../constants/constants.js');
 
+// Here we define several functions that are designed for the sole purpose of handling API errors in other functions
+
+// The main function of this script that is invoked in other other functions
+// Allows failed API calls to try up to 5 times before reporting an error
 async function retryApiCall(apiCall, maxRetries = 5, delayBetweenRetries = 1000) {
-    console.log("starting retryApiCall")
     let retries = 0;
     while (retries < maxRetries) {
         try {
@@ -16,55 +19,52 @@ async function retryApiCall(apiCall, maxRetries = 5, delayBetweenRetries = 1000)
                 await new Promise(resolve => setTimeout(resolve, delayBetweenRetries)); // Wait before retrying
             } else {
                 console.error('Max retries reached, giving up.');
-                throw error; // Throw the error if max retries are reached
+                throw error; 
 
             }
         }
     }
-console.log("ending retryApiCall")
 return
 }
 
+// Function to protect functions retrieving primary events from Infura
 async function getTransferData(filterConstants, fromBlock, toBlock) {
-    console.log("starting getTransferData")
     const results = {};
-
     for (const { name, filter } of filterConstants) {
         try {
             const apiCall = () => constants.FOAM_TOKEN_CONTRACT.queryFilter(filter, fromBlock, toBlock);
             results[name] = await retryApiCall(apiCall);
-
         } catch (error) {
             console.error(`Error processing ${name}: ${error}`);
-            // Handle the error if needed
+            return;
         }
     }
-    console.log("ending getTransferData")
+  
     return results;
 }
 
-      
-async function processTransferData(unprocessedTransfers) {
-    console.log("starting processTransferData")
-    const results = {};
 
+// Function for protecting functions that make secondary API calls after the initial retrieval
+async function processTransferData(unprocessedTransfers) {
+    const results = {};
     for (const { name, func, args } of unprocessedTransfers) {
         // Skip processing if args is undefined
         if (!args[0]) {
             console.error(`Error processing ${name}: Arguments are undefined`);
-            continue; // Skip to the next iteration
+            continue; 
         }
         try {
             results[name] = await retryApiCall(() => func(...args));
         } catch (error) {
             console.error(`Error processing ${name}: ${error}`);
-            // Handle the error if needed
+            throw error
         }
     }
     console.log("ending processTransferData")
     return results;
 }
 
+//Function just to protect the current block retrieval in main()
 async function getBlockWithRetry(provider) {
     const maxRetries = 5; // Set the maximum number of retries
     const delayBetweenRetries = 1000; // Set the delay between retries in milliseconds

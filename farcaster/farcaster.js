@@ -9,9 +9,9 @@ function sendCasts(castArray){
         if(sentArray.indexOf(castObject.transactionHash) != -1 ){
             continue;
         }
-        console.log(cast);
+        console.log(castObject);
         // sent casts out with a short delay 
-        setTimeout(sentArray.push(cast), 5000);
+        setTimeout(sentArray.push(castObject), 5000);
         sdk.postCast({ text: castObject.cast, signer_uuid: process.env.SIGNER_UUID }, { api_key: process.env.NEYNAR_API_KEY })
         .then(({ data }) => console.log(data))
         .catch(err => console.error("Error in API call:", err)); // Handle errors from the API calL
