@@ -18,27 +18,27 @@ async function main(){
     try{
         let currentBlock = await getBlockWithRetry(provider)
         let currentTimestamp = Date.now();
-        // let [lastBlock, lastTimestamp] = await getLastTimestamp();
-        // let fromBlock = lastBlock + 1;
-        let fromBlock = currentBlock.number - 100000
+        let [lastBlock, lastTimestamp] = await getLastTimestamp();
+        let fromBlock = lastBlock + 1;
+        // let fromBlock = currentBlock.number - 100000
         let toBlock = currentBlock.number;
         let cronTime = 1800000;
         let txMinimum = 1000;
         let castsToSend = [];
 
-        // if(!currentBlock){
-        //     console.log("Current block could not be aquired from provider.");
-        //     return;
-        // }
-        // if(!lastBlock){
-        //     console.log("Last block could not be acquired from database")
-        //     return;
-        // }
-        // if((currentTimestamp - lastTimestamp) > (cronTime * 3.75)){
-        //     console.log("Too much time in between timestamps, program risks recasting");
-        //     updateTimestamp(currentBlock.number, []);
-        //     return;
-        // }
+        if(!currentBlock){
+            console.log("Current block could not be aquired from provider.");
+            return;
+        }
+        if(!lastBlock){
+            console.log("Last block could not be acquired from database")
+            return;
+        }
+        if((currentTimestamp - lastTimestamp) > (cronTime * 3.75)){
+            console.log("Too much time in between timestamps, program risks recasting");
+            updateTimestamp(currentBlock.number, []);
+            return;
+        }
         console.log("START BLOCK: " + fromBlock);
         console.log("END BLOCK: " + toBlock);
 
@@ -119,12 +119,12 @@ async function main(){
         handleUnfilteredTransfers(allTransfers, castsToSend, "$FOAM transferred on Optimism: https://optimistic.etherscan.io/tx/", txMinimum);
       
         console.log(castsToSend)
-        // let sentCastArray = await sendCasts(castsToSend);
-        // await updateTimestamp(currentBlock.number, sentCastArray);
+        let sentCastArray = await sendCasts(castsToSend);
+        await updateTimestamp(currentBlock.number, sentCastArray);
     }catch(err){
     console.log(err)
     return
     }
     return
 }
-main()
+
