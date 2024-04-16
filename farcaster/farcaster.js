@@ -11,13 +11,14 @@ function sendCasts(castArray){
         }
         console.log(castObject);
         // sent casts out with a short delay 
-        setTimeout(sentArray.push(castObject), 5000);
-        sdk.postCast({ text: castObject.cast, signer_uuid: process.env.SIGNER_UUID }, { api_key: process.env.NEYNAR_API_KEY })
-        .then(({ data }) => console.log(data))
-        .catch(err => console.error("Error in API call:", err)); // Handle errors from the API calL
+        sentArray.push(castObject)
+        setTimeout(() => {
+            sdk.postCast({ text: castObject.cast, signer_uuid: process.env.SIGNER_UUID }, { api_key: process.env.NEYNAR_API_KEY })
+                .then(({ data }) => console.log(data))
+                .catch(err => console.error("Error in API call:", err)); // Handle errors from the API call
+        }, 5000); // Delay each API call by 5 seconds
+        return sentArray;
     }
-    return sentArray;
 }
-
 module.exports = { sendCasts };
 
