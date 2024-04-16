@@ -20,10 +20,9 @@ async function main(){
         let currentTimestamp = Date.now();
         let [lastBlock, lastTimestamp] = await getLastTimestamp();
         let fromBlock = lastBlock + 1;
-        // let fromBlock = currentBlock.number - 100000
         let toBlock = currentBlock.number;
         let cronTime = 1800000;
-        let txMinimum = 1000;
+        let txMinimum = 50000;
         let castsToSend = [];
 
         if(!currentBlock){
@@ -110,8 +109,6 @@ async function main(){
         const filterResults2 = await processTransferData(unprocessedCalls);
         // console.log('Filter function results:', filterResults2);
     
-        // Selecting mintTransfers, mintEvents, burnTransfers, burnEvents, and allTransfers from the results object
-    
         // Selecting minransfers, mintEvents, burnTransfers, burnEvents, and allTransfers from the results object
         filterMintBurns(mintTransfers, mintEvents, castsToSend, "$FOAM bridged to Optimism from L1: https://optimistic.etherscan.io/tx/", txMinimum);
         filterMintBurns(burnTransfers, burnEvents, castsToSend, "$FOAM bridged to L1 from Optimism: https://optimistic.etherscan.io/tx/", txMinimum);
@@ -128,3 +125,4 @@ async function main(){
     return
 }
 
+module.exports = { main };
