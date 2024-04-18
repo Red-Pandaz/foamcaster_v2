@@ -1,8 +1,9 @@
 const ethers = require('ethers')
-const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${process.env.INFURA_API}`)
+const { accessSecret, retryApiCall } = require('../utils/apiutils.js');
 const constants = require('../constants/constants.js');
 
-// There is a bit of redundancy here but transfers to and from the mint/burn address are double checked for actual mint/burn events
+
+// There is a bit of redundancy here but transfers to and from the mint/burn address are cross-referenced against mint/burn events
 function filterMintBurns(eventArray1, eventArray2, resultArray, messageTemplate, txMinimum) {
     if(!eventArray1 || !eventArray2){
         return
@@ -34,6 +35,8 @@ function filterMintBurns(eventArray1, eventArray2, resultArray, messageTemplate,
 
 // Handling transfers to and from Uniswap and Veledrome. This means checking transfers against Swap and Liquidity events
 async function filterExchangeTransfers(eventArray, contractAddress, contractABI, resultArray, messageTemplate, contractMethod, txMinimum) {
+    const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
+    const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
     if(!eventArray){
         return
     }
@@ -63,7 +66,7 @@ async function filterExchangeTransfers(eventArray, contractAddress, contractABI,
         if (resultArray.some(obj => obj.transactionHash === event.transactionHash)) {
             continue outerLoop;
         }
-        let blockMatch = await newContract.queryFilter(newContractFilter, event.blockNumber, event.blockNumber);
+        let blockMatch = await retryApiCall(() => newContract.queryFilter(newContractFilter, event.blockNumber, event.blockNumber));
         if (blockMatch) {
             for (let j = 0; j < blockMatch.length; j++) {
                 let match = blockMatch[j];
@@ -91,6 +94,8 @@ async function filterExchangeTransfers(eventArray, contractAddress, contractABI,
 // The first function that is called after initially gathering all relevant events.
 // This must be invoked before general exchange transfer handling or the aggregator aspect of the tx will be overlooked
 async function filterAggregatorEvents(events, resultArray, messageTemplate, txMinimum){ 
+    const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
+    const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
     // Instantly returns if no events to process
     if (!events) {
         return;
@@ -102,12 +107,8 @@ async function filterAggregatorEvents(events, resultArray, messageTemplate, txMi
             continue;
         }
         // Getting transaction receipt for event  
-        let receipt = await provider.getTransactionReceipt(event.transactionHash);
+        let receipt = await retryApiCall(() =>  provider.getTransactionReceipt(event.transactionHash));
         let logs = receipt.logs;
-
-
-
-
 
         // Selecting only events interacting with the FOAM contract
         logs = logs.filter(log => log.address === constants.FOAM_ADDRESS);

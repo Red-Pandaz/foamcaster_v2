@@ -1,5 +1,7 @@
 {
+    "main": "app.js",
     "dependencies": {
+        "@google-cloud/secret-manager": "^5.3.0",
         "api": "^6.1.1",
         "dotenv": "^10.0.0",
         "ethers": "^5.7.2",
@@ -7,8 +9,6 @@
         "node-schedule": "^2.1.1",
         "nodemailer": "^6.9.13",
         "request": "^2.88.2"
-    },
-    "scripts": {
-        "start": "node server.js"
     }
 }
+
