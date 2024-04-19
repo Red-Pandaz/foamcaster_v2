@@ -3,9 +3,9 @@
 
     const ethers = require('ethers');
     const dotenv = require("dotenv").config();
-    const {filterMintBurns, filterAggregatorEvents, filterExchangeTransfers, handleUnfilteredTransfers} = require('./functions/tokenfunctions.js');
+    const {filterMintBurns, filterAggregatorEvents, filterExchangeTransfers, handleUnfilteredTransfers, getTransferData} = require('./functions/tokenfunctions.js');
     const { updateTimestamp, getLastTimestamp } = require('./database/database.js');
-    const { retryApiCall, getTransferData, processTransferData, getBlockWithRetry, accessSecret } = require('./utils/apiutils.js');
+    const { retryApiCall, processTransferData, accessSecret } = require('./utils/apiutils.js');
     const { sendCasts } = require('./farcaster/farcaster.js');
     const constants = require('./constants/constants.js');
     
@@ -14,7 +14,8 @@
         try{
             const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
             const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
-            let currentBlock = await getBlockWithRetry(provider)
+            let currentBlock = await retryApiCall(() => provider.getBlockWithTransactions('latest'))
+            // let currentBlock = await getBlockWithRetry(provider)
             let currentTimestamp = Date.now();
             let [lastBlock, lastTimestamp] = await getLastTimestamp()
             let fromBlock = lastBlock - 100000;
