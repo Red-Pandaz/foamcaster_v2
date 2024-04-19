@@ -1,5 +1,3 @@
-
-
 const ethers = require('ethers')
 const { accessSecret, retryApiCall } = require('../utils/apiutils.js')
 let INFURA_API = process.env.INFURA_API
