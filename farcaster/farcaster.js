@@ -16,19 +16,19 @@ async function sendCasts(castArray) {
         console.log(castObject);
         //Sets 5 second delay between casts and calls retryApiCall to ensure casts are sent out in correct order
         
-        setTimeout(async () => {
-            try {
-                const { data } = await retryApiCall( async () => {
-                    await sdk.postCast({ text: castObject.cast, signer_uuid: SIGNER_UUID }, { api_key: NEYNAR_API_KEY });
+        // setTimeout(async () => {
+        //     try {
+        //         const { data } = await retryApiCall( async () => {
+        //             await sdk.postCast({ text: castObject.cast, signer_uuid: SIGNER_UUID }, { api_key: NEYNAR_API_KEY });
                    
-                });
-                console.log(data)
-                sentArray.push(castObject);
-            } catch (err) {
-                console.error("Error in API call:", err);
-                // Handle the error as needed
-            }
-        }, 5000); // Delay each API call by 5 seconds
+        //         });
+        //         console.log(data)
+        //         sentArray.push(castObject);
+        //     } catch (err) {
+        //         console.error("Error in API call:", err);
+        //         // Handle the error as needed
+        //     }
+        // }, 5000); // Delay each API call by 5 seconds
     }   
     return sentArray;
 }

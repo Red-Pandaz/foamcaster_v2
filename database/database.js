@@ -1,12 +1,15 @@
 const { MongoClient } = require('mongodb');
 const nodemailer = require('nodemailer');
 const dotenv = require("dotenv").config();
-const { retryApiCall, getTransferData, processTransferData, accessSecret } = require('../utils/apiutils.js');
-const dbName = 'Foamcaster-V2'
-const collectionName = 'Snapshots'
+const { retryApiCall, getTransferData, processTransferData } = require('../utils/apiutils.js');
 
+// Connection URI
+const uri = `${process.env.DB_URI}`;
+const dbName = "Foamcaster-V2";
+const collectionName = "Snapshots";
 
-let client
+// Create a new MongoClient;
+let client = new MongoClient(uri);
 
 
 async function updateTimestamp(blockHeight, castArray) {
@@ -26,7 +29,7 @@ async function updateTimestamp(blockHeight, castArray) {
 
 async function getLastTimestamp() {
     try {
-        return await retryApiCall(() => getLastTimestampInternal())
+        return await retryApiCall(getLastTimestampInternal);
     } catch (error) {
         console.error('Error getting last timestamp:', error);
         // Handle the error if needed
@@ -34,41 +37,34 @@ async function getLastTimestamp() {
 }
 
 async function getLastTimestampInternal() {
-    const DB_URI = await retryApiCall(() => accessSecret('DB_URI'));
-    try {
-        if (!client || !client.topology || !client.topology.isConnected()) {
-            client = new MongoClient(DB_URI);
-            await retryApiCall(() => client.connect());
-            console.log("Connected to the database");
-        }
-        const db = client.db(dbName); // Assuming dbName is defined globally or passed as a parameter
-        const collection = db.collection(collectionName); // Assuming collectionName is defined globally or passed as a parameter
-        const lastObject = await retryApiCall(() => collection.find().sort({ timestamp: -1 }).limit(1).toArray());
-        console.log("Last Object: " + lastObject)
+    if (!client || !client.topology || !client.topology.isConnected()) {
+        client = new MongoClient(uri);
+        await client.connect();
+        console.log("Connected to the database");
+    }
 
-        if (lastObject.length > 0) {
-            const lastBlockHeight = lastObject[0].blockstamp;
-            const lastTimestamp = lastObject[0].timestamp;
-            return [lastBlockHeight, lastTimestamp];
-        } else {
-            return null;
-        }
-    } catch (error) {
-        console.log(DB_URI)
-        console.error('Error fetching last timestamp:', error);
-        throw error; // Rethrow the error to be caught by the caller
+    const db = client.db(dbName);
+    const collection = db.collection(collectionName);
+    let lastObject = await collection.find().sort({ timestamp: -1 }).limit(1).toArray();
+
+    if (lastObject.length > 0) {
+        let lastBlockHeight = lastObject[0].blockstamp;
+        let lastTimestamp = lastObject[0].timestamp;
+        return [lastBlockHeight, lastTimestamp];
+    } else {
+        return null;
     }
 }
 
 async function pushFoamDB(timestamp) {
-    const DB_URI = await retryApiCall(() => accessSecret('DB_URI'));
- 
     try {
         if (!client || !client.topology || !client.topology.isConnected()) {
-            client = new MongoClient(DB_URI);
-            await retryApiCall(() => client.connect());
+            // Create a new MongoClient instance if not already created or connected
+            client = new MongoClient(uri);
+            await client.connect();
             console.log("Connected to the database");
         }
+
         // Get a reference to the database
         const db = client.db(dbName);
         
@@ -76,21 +72,20 @@ async function pushFoamDB(timestamp) {
         const collection = db.collection(collectionName);
         
         // Insert the document into the collection
-        const result = await retryApiCall(() => collection.insertOne(timestamp));
+        const result = await collection.insertOne(timestamp);
         console.log(`Document inserted with _id: ${result.insertedId}`);
     } catch (error) {
         console.error('Error inserting document:', error);
     } finally {
         // Close the connection
         if (client && client.topology && client.topology.isConnected()) {
-            await retryApiCall(() => client.close());
+            await client.close();
             console.log("Connection closed");
         }
     }
 }
 
-//wraps pruneDatabaseAndEmailInternal in an additional error handler
-async function pruneDatabaseAndEmail(){
+async function pruneDatabaseAndEmail() {
     try {
         await retryApiCall(pruneDatabaseAndEmailInternal);
     } catch (error) {
@@ -98,44 +93,36 @@ async function pruneDatabaseAndEmail(){
         // Handle the error if needed
     }
 }
-//Prunes database and calls sendEmail
+
 async function pruneDatabaseAndEmailInternal() {
-    const DB_URI = await retryApiCall(() => accessSecret('DB_URI'));
-    try {
-        if (!client || !client.topology || !client.topology.isConnected()) {
-            client = new MongoClient(DB_URI);
-            await retryApiCall(() => client.connect());
-            console.log("Connected to the database");
-        }
+    if (!client || !client.topology || !client.topology.isConnected()) {
+        client = new MongoClient(uri);
+        await client.connect();
+        console.log('Connected to MongoDB');
+    }
 
     const db = client.db(dbName);
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    await retryApiCall(() => db.collection(collectionName).deleteMany({ timestamp: { $lt: oneWeekAgo } }));
+    await db.collection(collectionName).deleteMany({ timestamp: { $lt: oneWeekAgo } });
 
-    const prunedData = await retryApiCall(() => db.collection(collectionName).find({ timestamp: { $lt: oneWeekAgo } }).toArray());
-    await retryApiCall(() => sendEmail(prunedData));
+    const prunedData = await db.collection(collectionName).find({ timestamp: { $lt: oneWeekAgo } }).toArray();
+    await sendEmail(prunedData);
 
     console.log('Pruning complete');
-    }catch(err){
-    console.log(err)
-    }
-
 }
 
-//emails pruned data
+
+
 async function sendEmail(prunedData) {
     try{
-        const DB_OUTGOING_EMAIL_ADDRESS = await retryApiCall(() => accessSecret('DB_OUTGOING_EMAIL_ADDRESS'))
-        const DB_OUTGOING_EMAIL_PASSWORD = await retryApiCall(() => accessSecret('DB_OUTGOING_EMAIL_PASSWORD'))
-        const DB_INCOMING_EMAIL_ADDRESS = await retryApiCall(() => accessSecret('DB_OUTGOING_EMAIL_PASSWORD'))
         let transporter = nodemailer.createTransport({
             host: 'smtp.office365.com',
             port: 587,
             secure: false, // true for 465, false for other ports
             auth: {
-                user: `${DB_OUTGOING_EMAIL_ADDRESS}`,
-                pass: `${DB_OUTGOING_EMAIL_PASSWORD}`
+                user: `${process.env.DB_OUTGOING_EMAIL_ADDRESS}`,
+                pass: `${process.env.DB_OUTGOING_EMAIL_PASSWORD}`
             },
 
         });
@@ -144,8 +131,8 @@ async function sendEmail(prunedData) {
 
     
         let mailOptions = {
-            from: `${DB_OUTGOING_EMAIL_ADDRESS}`,
-            to: `${DB_INCOMING_EMAIL_ADDRESS}`,
+            from: `${process.env.DB_OUTGOING_EMAIL_ADDRESS}`,
+            to: `${process.env.DB_INCOMING_EMAIL_ADDRESS}`,
             subject: `FOAMcaster_V2 Pruned Data From Blocks ${min}-${max}`,
             text: `Attached is pruned data from blocks ${min}-${max}`,
             attachments: [
@@ -155,21 +142,24 @@ async function sendEmail(prunedData) {
                 }
             ]
         };
-        let info = await retryApiCall(() => transporter.sendMail(mailOptions));
+
+        let info = await transporter.sendMail(mailOptions);
         console.log('Email sent:', info.messageId);
     }catch(err){
         console.log(err)
     }
 }
 
-//helper function for determining the block-range that pruned data contains
 function findMinMaxBlockHeight(prunedData) {
     if (!prunedData || !Array.isArray(prunedData) || prunedData.length === 0) {
         console.log("No data to email.");
         return;
     }
+
+
     let { min, max } = findMinMaxBlockHeight(prunedData);
-    
+
+
     for (let i = 1; i < prunedData.length; i++) {
         let currentBlockHeight = prunedData[i].blockstamp;
         if (currentBlockHeight < minBlockHeight) {
@@ -179,8 +169,6 @@ function findMinMaxBlockHeight(prunedData) {
             maxBlockHeight = currentBlockHeight;
         }
     }
-    console.log("Main job function executed");
-    res.status(200).send("Main job executed successfully");
     return { min: min, max: max };
 }
 
