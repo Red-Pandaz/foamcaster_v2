@@ -1,9 +1,8 @@
 
 
 const ethers = require('ethers')
-const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
 const { accessSecret, retryApiCall } = require('../utils/apiutils.js')
-let INFURA_API = '60288888b5b5452288e7ccadf378d998'
+let INFURA_API = process.env.INFURA_API
 const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
 
 
