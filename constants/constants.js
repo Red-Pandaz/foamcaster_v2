@@ -1,6 +1,12 @@
+
+
 const ethers = require('ethers')
-const dotenv = require("dotenv").config()
-const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${process.env.INFURA_API}`)
+const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
+const { accessSecret, retryApiCall } = require('../utils/apiutils.js')
+let INFURA_API = '60288888b5b5452288e7ccadf378d998'
+const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
+
+
 
 //addresses
 const FOAM_ADDRESS = '0x79E6c6b6aABA4432FAbacB30cC0C879D8f3E598e';
@@ -27,6 +33,7 @@ const VELEDROME_LIQUIDITY_ABI = JSON.parse(require('../abi/veledromeliquidityabi
 
 //contracts/methods
 const FOAM_TOKEN_CONTRACT = new ethers.Contract(FOAM_ADDRESS, FOAM_TOKEN_ABI, provider);
+
 const FOAM_TOKEN_XFER_METHOD = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
 const UNI_V3_TOKEN_CONTRACT = new ethers.Contract(UNI_V3_ADDRESS, UNI_V3_ABI, provider);
 const UNI_V3_LIQUIDITY_CONTRACT = new ethers.Contract(UNI_V3_LIQUIDITY_ADDRESS, UNI_V3_LIQUIDITY_ABI, provider);

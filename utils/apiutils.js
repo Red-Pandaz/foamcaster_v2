@@ -1,5 +1,3 @@
-const ethers = require('ethers')
-const constants = require('../constants/constants.js');
 const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
 
 // Here we define several functions that are designed for the sole purpose of handling API errors in other functions
@@ -66,20 +64,6 @@ async function processTransferData(unprocessedTransfers) {
     return results;
 }
 
-//Function just to protect the current block retrieval in main()
-async function getBlockWithRetry(provider) {
-    const maxRetries = 5; 
-    const delayBetweenRetries = 1000; 
-  
-    try {
-      return await retryApiCall(async () => {
-        return await provider.getBlockWithTransactions('latest');
-      }, maxRetries, delayBetweenRetries);
-    } catch (error) {
-      console.error('Failed to get block with retries:', error.message);
-      throw error; 
-    }
-  }
 
 //This latest update is intended to make the project compatible with Google Clound Functions. That means integrating Google Secrets instead of using .env
  async function accessSecret(secretName) {
@@ -97,4 +81,4 @@ async function getBlockWithRetry(provider) {
 }
 
 
-module.exports = { retryApiCall, getTransferData, processTransferData, getBlockWithRetry, accessSecret }
+module.exports = { retryApiCall, getTransferData, processTransferData, accessSecret }

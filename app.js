@@ -8,9 +8,8 @@
     const { retryApiCall, processTransferData, accessSecret } = require('./utils/apiutils.js');
     const { sendCasts } = require('./farcaster/farcaster.js');
     const constants = require('./constants/constants.js');
-    
-    // exports.main = async (req, res) =>
     async function main(){
+    // exports.main = async (req, res) =>{
         try{
             const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
             const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
@@ -18,7 +17,7 @@
             // let currentBlock = await getBlockWithRetry(provider)
             let currentTimestamp = Date.now();
             let [lastBlock, lastTimestamp] = await getLastTimestamp()
-            let fromBlock = lastBlock - 100000;
+            let fromBlock = currentBlock.number - 200000;
             let toBlock = currentBlock.number;
             let cronTime = 1800000;
             let txMinimum = 1000;
@@ -129,10 +128,9 @@
         return
         }
         console.log("Cloud Function executed");
-        // res.status(200).send("Cloud Function executed successfully");
+        res.status(200).send("Cloud Function executed successfully");
         return
     }
     
-    main()
     //module.exports = { main };
-    
+    main()

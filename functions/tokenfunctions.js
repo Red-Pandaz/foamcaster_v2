@@ -184,11 +184,27 @@ function handleUnfilteredTransfers(transfers, resultArray, messageTemplate, txMi
 
 }
 
+// Utility function made to wrap initial event scanning into error handling
+async function getTransferData(filterConstants, fromBlock, toBlock) {
+    const results = {};
+    for (const { name, filter } of filterConstants) {
+        try {
+            const apiCall = () => constants.FOAM_TOKEN_CONTRACT.queryFilter(filter, fromBlock, toBlock);
+            results[name] = await retryApiCall(apiCall); 
+        } catch (error) {
+            console.error(`Error processing ${name}: ${error}`);
+            return;
+        }
+    }
+    return results;
+}
+
 
 module.exports = { 
     filterMintBurns,
     filterAggregatorEvents,
     filterExchangeTransfers,
     handleUnfilteredTransfers,
+    getTransferData
 };
 
