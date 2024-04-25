@@ -3,8 +3,6 @@ const { accessSecret, retryApiCall } = require('../utils/apiutils.js')
 let INFURA_API = process.env.INFURA_API
 const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
 
-
-
 //addresses
 const FOAM_ADDRESS = '0x79E6c6b6aABA4432FAbacB30cC0C879D8f3E598e';
 const FOAM_MINT_BURN_ADDRESS = '0x0000000000000000000000000000000000000000';

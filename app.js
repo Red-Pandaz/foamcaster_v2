@@ -18,7 +18,7 @@
             let fromBlock = lastBlock + 1;
             let toBlock = currentBlock.number;
             let cronTime = 1800000;
-            let txMinimum = process.env.TX_MIN;
+            let txMinimum = 25000;
             let castsToSend = [];
     
             // Making sure that block ranges are accessed and ready to use 
@@ -130,4 +130,3 @@
         return
     }
     
-    module.exports = { main };

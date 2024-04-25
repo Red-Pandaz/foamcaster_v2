@@ -3,3 +3,4 @@
 app.yaml
 node_modules
 abi/DS_Store
+.gcloudignore
