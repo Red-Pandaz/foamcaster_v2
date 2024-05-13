@@ -3,11 +3,76 @@ const nodemailer = require('nodemailer');
 const dotenv = require("dotenv").config();
 const { retryApiCall, getTransferData, processTransferData, accessSecret } = require('../utils/apiutils.js');
 const dbName = 'Foamcaster-V2'
-const collectionName = 'Snapshots'
-
-
+const timestampCollectionName = 'Snapshots'
+const zoneCollectionName = 'Zones'
+const claimCollectionName ='Presence Claims'
+// const DB_URI = await retryApiCall(() => accessSecret('DB_URI'));
 let client
 
+
+async function updateZones(zonesToAdd, destroyedArray, claimsToAdd) {
+    const DB_URI = await retryApiCall(() => accessSecret('DB_URI'));
+   
+    try {
+        if (!client || !client.topology || !client.topology.isConnected()) {
+            client = new MongoClient(DB_URI);
+            await retryApiCall(() => client.connect());
+            console.log("Connected to the database");
+        }
+        const database = client.db(dbName); 
+        const zoneCollection = database.collection(zoneCollectionName); 
+        const claimCollection = database.collection(claimCollectionName)
+
+        // Filter out itemsToAdd that have duplicate _id values
+        const existingZones = await zoneCollection.distinct('_id');
+        const existingClaims = await claimCollection.distinct('_id')
+        zonesToAdd = zonesToAdd.filter(item => !existingZones.includes(item._id));
+        claimsToAdd = claimsToAdd.filter(item => !existingClaims.includes(item._id));
+
+        if (zonesToAdd.length > 0) {
+            await zoneCollection.insertMany(zonesToAdd);
+        }
+        if (claimsToAdd.length > 0){
+            await claimCollection.insertMany(claimsToAdd)
+        }
+        await zoneCollection.updateMany(
+            { _id: { $in: destroyedArray } },
+            { $set: { active: false } }
+        );
+
+        const result = await zoneCollection.updateMany(
+            { _id: { $in: destroyedArray } },
+            { $set: { active: false } }
+        );
+        const { modifiedCount } = result;
+        const notFoundCount = destroyedArray.length - modifiedCount;
+
+        if (notFoundCount > 0) {
+            console.warn(`${notFoundCount} items flagged for deactivation were not found in the collection.`);
+        }
+        console.log("Collection updated successfully.");
+    } catch (error) {
+        console.error("Error updating collection:", error);
+    }
+}
+
+async function getZoneCollection() {
+    const DB_URI = await retryApiCall(() => accessSecret('DB_URI'));
+    try {
+        if (!client || !client.topology || !client.topology.isConnected()) {
+            client = new MongoClient(DB_URI);
+            await retryApiCall(() => client.connect());
+            console.log("Connected to the database");
+        }
+        const db = client.db(dbName);
+        const collection = db.collection(zoneCollectionName);
+        const documents = await collection.find({}).toArray();
+        return documents
+    } catch (error) {
+        console.error('Error fetching Zones:', error);
+        throw error; // Rethrow the error to be caught by the caller
+    }
+}
 
 async function updateTimestamp(blockHeight, castArray) {
     let newTimestampObj = {
@@ -42,7 +107,7 @@ async function getLastTimestampInternal() {
             console.log("Connected to the database");
         }
         const db = client.db(dbName); // Assuming dbName is defined globally or passed as a parameter
-        const collection = db.collection(collectionName); // Assuming collectionName is defined globally or passed as a parameter
+        const collection = db.collection(timestampCollectionName); // Assuming collectionName is defined globally or passed as a parameter
         const lastObject = await retryApiCall(() => collection.find().sort({ timestamp: -1 }).limit(1).toArray());
         console.log("Last Object: " + lastObject)
 
@@ -73,7 +138,7 @@ async function pushFoamDB(timestamp) {
         const db = client.db(dbName);
         
         // Get a reference to the collection
-        const collection = db.collection(collectionName);
+        const collection = db.collection(timestampCollectionName);
         
         // Insert the document into the collection
         const result = await retryApiCall(() => collection.insertOne(timestamp));
@@ -111,9 +176,9 @@ async function pruneDatabaseAndEmailInternal() {
     const db = client.db(dbName);
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    await retryApiCall(() => db.collection(collectionName).deleteMany({ timestamp: { $lt: oneWeekAgo } }));
+    await retryApiCall(() => db.collection(timestampCollectionName).deleteMany({ timestamp: { $lt: oneWeekAgo } }));
 
-    const prunedData = await retryApiCall(() => db.collection(collectionName).find({ timestamp: { $lt: oneWeekAgo } }).toArray());
+    const prunedData = await retryApiCall(() => db.collection(timestampCollectionName).find({ timestamp: { $lt: oneWeekAgo } }).toArray());
     await retryApiCall(() => sendEmail(prunedData));
 
     console.log('Pruning complete');
@@ -185,4 +250,7 @@ function findMinMaxBlockHeight(prunedData) {
 }
 
 
-module.exports = { updateTimestamp, getLastTimestamp, pruneDatabaseAndEmail };
+
+
+
+module.exports = { updateTimestamp, getLastTimestamp, pruneDatabaseAndEmail, updateZones, getZoneCollection };

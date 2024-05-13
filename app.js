@@ -2,17 +2,28 @@
     const ethers = require('ethers');
     const dotenv = require("dotenv").config();
     const {filterMintBurns, filterAggregatorEvents, filterExchangeTransfers, handleUnfilteredTransfers, getTransferData} = require('./functions/tokenfunctions.js');
-    const { updateTimestamp, getLastTimestamp } = require('./database/database.js');
+    const { updateTimestamp, getLastTimestamp, updateZones, getZoneCollection } = require('./database/database.js');
+    const { getTestEvents, getZoneCreations, getZoneDestructions } = require('./functions/locationfunctions.js')
     const { retryApiCall, processTransferData, accessSecret } = require('./utils/apiutils.js');
     const { sendCasts } = require('./farcaster/farcaster.js');
     const constants = require('./constants/constants.js');
-    
-    exports.main = async (req, res) =>{
+        async function main(){
+    // exports.main = async (req, res) =>{
         try{
+            const testProvider =  new ethers.providers.JsonRpcProvider(`https://devnet-l2.foam.space/api/eth-rpc`)
+            const testCurrentBlock = await testProvider.getBlockWithTransactions('latest')
+            console.log('test1')
+            const testFromBlock = 0
+            const testToBlock = testCurrentBlock.number
+            console.log(testFromBlock, testToBlock)
             const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
+            console.log(INFURA_API)
+            console.log('test3')
             const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
+            console.log(INFURA_API)
+            console.log('test4')
             let currentBlock = await retryApiCall(() => provider.getBlockWithTransactions('latest'))
-            // let currentBlock = await getBlockWithRetry(provider)
+            console.log('test5')
             let currentTimestamp = Date.now();
             let [lastBlock, lastTimestamp] = await getLastTimestamp()
             let fromBlock = lastBlock + 1;
@@ -20,6 +31,11 @@
             let cronTime = 1800000;
             let txMinimum = 25000;
             let castsToSend = [];
+            let zoneArray = [];
+            let claimArray = [];
+            let newZones = [];
+            let destroyedArray = [];
+            let zoneCollection = await getZoneCollection();
     
             // Making sure that block ranges are accessed and ready to use 
     
@@ -42,6 +58,10 @@
             console.log("START BLOCK: " + fromBlock);
             console.log("END BLOCK: " + toBlock);
     
+            await getZoneCreations(testFromBlock, testToBlock, castsToSend, zoneCollection, zoneArray, newZones) 
+            await getZoneDestructions(testFromBlock, testToBlock, zoneArray, castsToSend, destroyedArray, newZones)
+            await getTestEvents(testFromBlock, testToBlock, castsToSend, claimArray, zoneArray);
+            await updateZones(newZones, destroyedArray, claimArray)
     
             // Retrieving filter information from constants
                 const filterConstants = [
@@ -119,14 +139,16 @@
             handleUnfilteredTransfers(allTransfers, castsToSend, "$FOAM transferred on Optimism: https://optimistic.etherscan.io/tx/", txMinimum);
           
             //Final processing, sent casts out and update timestamp before returning
+
             let sentCastArray = await sendCasts(castsToSend);
+        
             await updateTimestamp(currentBlock.number, sentCastArray);
         }catch(err){
         console.log(err)
         return
         }
         console.log("Cloud Function executed");
-        res.status(200).send("Cloud Function executed successfully");
+        // res.status(200).send("Cloud Function executed successfully");
         return
     }
-    
+    main()

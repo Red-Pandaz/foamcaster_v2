@@ -1,0 +1,91 @@
+[
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "cid",
+                "type": "bytes32"
+            }
+        ],
+        "name": "localization",
+        "outputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "int256",
+                        "name": "altitude",
+                        "type": "int256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "zoneId",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint96",
+                        "name": "timestamp",
+                        "type": "uint96"
+                    },
+                    {
+                        "internalType": "bytes20",
+                        "name": "geohash",
+                        "type": "bytes20"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "mobileNodeAddress",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint96",
+                        "name": "mobileNodeFeeAmount",
+                        "type": "uint96"
+                    },
+                    {
+                        "internalType": "uint32",
+                        "name": "mobileNodeNonce",
+                        "type": "uint32"
+                    },
+                    {
+                        "internalType": "uint8",
+                        "name": "algorithm",
+                        "type": "uint8"
+                    },
+                    {
+                        "internalType": "uint8",
+                        "name": "distinctAnchors",
+                        "type": "uint8"
+                    },
+                    {
+                        "internalType": "bytes",
+                        "name": "mobileNodeData",
+                        "type": "bytes"
+                    }
+                ],
+                "internalType": "struct GossipUtils.Localization",
+                "name": "",
+                "type": "tuple"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "keccakHash",
+                "type": "bytes32"
+            },
+            {
+                "internalType": "bytes",
+                "name": "cborData",
+                "type": "bytes"
+            }
+        ],
+        "name": "store",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }
+]
