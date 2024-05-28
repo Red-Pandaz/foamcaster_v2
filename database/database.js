@@ -10,7 +10,7 @@ const claimCollectionName ='Presence Claims'
 let client
 
 
-async function updateZones(zonesToAdd, destroyedArray, claimsToAdd) {
+async function updateZonesAndClaims(zonesToAdd, destroyedArray, claimsToAdd) {
     const DB_URI = await retryApiCall(() => accessSecret('DB_URI'));
    
     try {
@@ -24,26 +24,26 @@ async function updateZones(zonesToAdd, destroyedArray, claimsToAdd) {
         const claimCollection = database.collection(claimCollectionName)
 
         // Filter out itemsToAdd that have duplicate _id values
-        const existingZones = await zoneCollection.distinct('_id');
-        const existingClaims = await claimCollection.distinct('_id')
+        const existingZones = await retryApiCall(() =>zoneCollection.distinct('_id'));
+        const existingClaims = await retryApiCall(() => claimCollection.distinct('_id'))
         zonesToAdd = zonesToAdd.filter(item => !existingZones.includes(item._id));
         claimsToAdd = claimsToAdd.filter(item => !existingClaims.includes(item._id));
 
         if (zonesToAdd.length > 0) {
-            await zoneCollection.insertMany(zonesToAdd);
+            await retryApiCall(() =>zoneCollection.insertMany(zonesToAdd));
         }
         if (claimsToAdd.length > 0){
-            await claimCollection.insertMany(claimsToAdd)
+            await retryApiCall(() =>claimCollection.insertMany(claimsToAdd))
         }
         await zoneCollection.updateMany(
             { _id: { $in: destroyedArray } },
             { $set: { active: false } }
         );
 
-        const result = await zoneCollection.updateMany(
+        const result = await retryApiCall(() => zoneCollection.updateMany(
             { _id: { $in: destroyedArray } },
             { $set: { active: false } }
-        );
+        ));
         const { modifiedCount } = result;
         const notFoundCount = destroyedArray.length - modifiedCount;
 
@@ -66,7 +66,7 @@ async function getZoneCollection() {
         }
         const db = client.db(dbName);
         const collection = db.collection(zoneCollectionName);
-        const documents = await collection.find({}).toArray();
+        const documents = await retryApiCall(() => collection.find({}).toArray());
         return documents
     } catch (error) {
         console.error('Error fetching Zones:', error);
@@ -253,4 +253,4 @@ function findMinMaxBlockHeight(prunedData) {
 
 
 
-module.exports = { updateTimestamp, getLastTimestamp, pruneDatabaseAndEmail, updateZones, getZoneCollection };
+module.exports = { updateTimestamp, getLastTimestamp, pruneDatabaseAndEmail, updateZonesAndClaims, getZoneCollection };

@@ -18,12 +18,13 @@ function filterMintBurns(eventArray1, eventArray2, resultArray, messageTemplate,
         let txValue = ethers.BigNumber.from(Math.round(filteredEvent.args.value* Math.pow(10, -16) / 100))
         if(txValue >= txMinimum){
             let formattedTxValue = txValue.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",")
-            let castMessage = `${formattedTxValue} ${messageTemplate}${filteredEvent.transactionHash}`
+            let castMessage = `${formattedTxValue} ${messageTemplate}`
             let newObject = {
                 transactionHash: filteredEvent.transactionHash,
                 blockHeight: filteredEvent.blockNumber,
                 value: parseInt(ethers.BigNumber.from(txValue).toString()),
-                cast: castMessage
+                cast: castMessage,
+                etherUrl: `https://optimistic.etherscan.io/tx/${filteredEvent.transactionHash}`
             };
             resultArray.push(newObject);
            
@@ -59,7 +60,7 @@ async function filterExchangeTransfers(eventArray, contractAddress, contractABI,
     outerLoop:
     for (let i = 0; i < eventArray.length; i++) {
         let event = eventArray[i];
-        if(event.args.to === constants.veledromeRewardsAddress){
+        if(event.args.to === constants.VELEDROME_REWARDS_ADDRESS){
             continue;
         }
         // Confirming non-existence of event's tx hash before proceeding
@@ -74,12 +75,13 @@ async function filterExchangeTransfers(eventArray, contractAddress, contractABI,
                     let txValue = ethers.BigNumber.from(Math.round(event.args.value * Math.pow(10, -16) / 100))
                     if (txValue >= txMinimum) {
                         let formattedTxValue = txValue.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",")
-                        let castMessage = `${formattedTxValue} ${messageTemplate}${event.transactionHash}`
+                        let castMessage = `${formattedTxValue} ${messageTemplate}`
                         let newObject = {
                             transactionHash: event.transactionHash,
                             blockHeight: event.blockNumber,
                             value: parseInt(ethers.BigNumber.from(txValue).toString()),
-                            cast: castMessage
+                            cast: castMessage,
+                            etherUrl: `https://optimistic.etherscan.io/tx/${event.transactionHash}`
                         };
                         resultArray.push(newObject);
                         continue outerLoop;
@@ -149,12 +151,13 @@ async function filterAggregatorEvents(events, resultArray, messageTemplate, txMi
         if (transferTotal >= txMinimum) {
             let formattedTxValue = Math.round(transferTotal);
             reFormattedTxValue = formattedTxValue.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",")
-            let castMessage = `${reFormattedTxValue} ${messageTemplate}${event.transactionHash}`;
+            let castMessage = `${reFormattedTxValue} ${messageTemplate}`;
             let newObject = {
                 transactionHash: event.transactionHash,
                 blockHeight: event.blockNumber,
                 value: formattedTxValue,
-                cast: castMessage
+                cast: castMessage,
+                etherUrl: `https://optimistic.etherscan.io/tx/${event.transactionHash}`
             };
             resultArray.push(newObject);
         }
@@ -177,7 +180,8 @@ function handleUnfilteredTransfers(transfers, resultArray, messageTemplate, txMi
             transactionHash: transfer.transactionHash,
             blockHeight: transfer.blockNumber,
             value: parseInt(ethers.BigNumber.from(txValue).toString()),
-            cast: castMessage
+            cast: castMessage,
+            etherUrl: `https://optimistic.etherscan.io/tx/${transfer.transactionHash}`
         }
         resultArray.push(newObject)
     }
@@ -186,10 +190,14 @@ function handleUnfilteredTransfers(transfers, resultArray, messageTemplate, txMi
 
 // Utility function made to wrap initial event scanning into error handling
 async function getTransferData(filterConstants, fromBlock, toBlock) {
+    const FOAM_TOKEN_ABI = JSON.parse(require('../abi/foamtoken.json').result);
+    const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
+    const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
+    const FOAM_TOKEN_CONTRACT = new ethers.Contract(constants.FOAM_ADDRESS, FOAM_TOKEN_ABI, provider);
     const results = {};
     for (const { name, filter } of filterConstants) {
         try {
-            const apiCall = () => constants.FOAM_TOKEN_CONTRACT.queryFilter(filter, fromBlock, toBlock);
+            const apiCall = () => FOAM_TOKEN_CONTRACT.queryFilter(filter, fromBlock, toBlock);
             results[name] = await retryApiCall(apiCall); 
         } catch (error) {
             console.error(`Error processing ${name}: ${error}`);
