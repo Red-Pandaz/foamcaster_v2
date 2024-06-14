@@ -1,29 +1,25 @@
 //TODO: Add logic for LiFi and 0x
+//Change constants to main net contract addresses
     const ethers = require('ethers');
     const dotenv = require("dotenv").config();
     const {filterMintBurns, filterAggregatorEvents, filterExchangeTransfers, handleUnfilteredTransfers, getTransferData} = require('./functions/tokenfunctions.js');
     const { updateTimestamp, getLastTimestamp, updateZonesAndClaims, getZoneCollection } = require('./database/database.js');
     const { getClaimEvents, getZoneCreations, getZoneDestructions } = require('./functions/locationfunctions.js')
     const { retryApiCall, processTransferData, accessSecret } = require('./utils/apiutils.js');
-    const { sendCasts } = require('./farcaster/farcaster.js');
+    const { sendCastsAndTweets } = require('./farcaster/farcaster.js');
     const constants = require('./constants/constants.js');
-        async function main(){
-    // exports.main = async (req, res) =>{
+
+    exports.main = async (req, res) => {
         try{
-            const testProvider =  new ethers.providers.JsonRpcProvider(`https://devnet-l2.foam.space/api/eth-rpc`)
-            const testCurrentBlock = await retryApiCall(() => testProvider.getBlockWithTransactions('latest'))
-            const testFromBlock = 0
-            const testToBlock = testCurrentBlock.number
+
             const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
             const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
             let currentBlock = await retryApiCall(() => provider.getBlockWithTransactions('latest'))
             let currentTimestamp = Date.now();
             let [lastBlock, lastTimestamp] = await getLastTimestamp()
-            // let fromBlock = lastBlock + 1;
-            // let toBlock = currentBlock.number
-            let fromBlock = lastBlock - 400000
-            let toBlock = lastBlock - 200000;
-
+            let fromBlock = lastBlock + 1;
+            let toBlock = currentBlock.number
+  
             let cronTime = 1800000;
             let txMinimum = 25000;
             let castsToSend = [];
@@ -54,9 +50,9 @@
             console.log("START BLOCK: " + fromBlock);
             console.log("END BLOCK: " + toBlock);
     
-            // await getZoneCreations(testFromBlock, testToBlock, castsToSend, zoneCollection, zoneArray, newZones);
-            // await getZoneDestructions(testFromBlock, testToBlock, zoneArray, castsToSend, destroyedArray, newZones);
-            // await getClaimEvents(testFromBlock, testToBlock, castsToSend, claimArray, zoneArray);
+            await getZoneCreations(fromBlock, toBlock, castsToSend, zoneCollection, zoneArray, newZones);
+            await getZoneDestructions(fromBlock, toBlock, zoneArray, castsToSend, destroyedArray, newZones);
+            await getClaimEvents(fromBlock, toBlock, castsToSend, claimArray, zoneArray);
 
 
             // Token ABIs
@@ -180,15 +176,13 @@
           
             //Final processing, sent casts out and update databases before returning
 
-            let sentCastArray = await sendCasts(castsToSend);
-            // await updateZonesAndClaims(newZones, destroyedArray, claimArray)
-            await updateTimestamp(currentBlock.number, sentCastArray);
+            let sentCastArray = await sendCastsAndTweets(castsToSend);
+            await updateZonesAndClaims(newZones, destroyedArray, claimArray)
+            // await updateTimestamp(currentBlock.number, sentCastArray);
         }catch(err){
         console.log(err)
         return
         }
         console.log("Cloud Function executed");
-        // res.status(200).send("Cloud Function executed successfully");
         return
     }
-    main()

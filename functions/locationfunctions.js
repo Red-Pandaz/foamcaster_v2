@@ -1,32 +1,26 @@
 //make sure constants are moved to constants.js
 //make sure error handling is complete
 const dotenv = require("dotenv").config()
-const { ethers, JsonRpcProvider } = require('ethers');
+const { ethers } = require('ethers');
 const crypto = require('crypto');
 const geohash = require('ngeohash')
 const { retryApiCall, accessSecret } = require('../utils/apiutils.js');
 const { convertHexToGeohash } = require('../utils/helpers.js')
-const { updateZones, getZoneCollection } = require('../database/database.js')
 const constants = require('../constants/constants.js');
-const testProvider =  new ethers.providers.JsonRpcProvider(`https://devnet-l2.foam.space/api/eth-rpc`)
+// const testProvider =  new ethers.providers.JsonRpcProvider(`https://devnet-l2.foam.space/api/eth-rpc`)
 
 //Localization ABIs
-const TEST_PRESENCE_CLAIM_ABI = require('../abi/test-presence-claim.json')
-const TEST_ZONE_ABI = require('../abi/test-zone.json')
-
-//Localization Contracts
-const TEST_PRESENCE_CLAIM_CONTRACT = new ethers.Contract(constants.TEST_FOAM_PRESENCE_CLAIM_ADDRESS, TEST_PRESENCE_CLAIM_ABI, testProvider)
-const TEST_ZONE_CONTRACT = new ethers.Contract(constants.TEST_ZONE_ADDRESS, TEST_ZONE_ABI, testProvider)
-
-//Localization Filters
-const PRESENCE_CLAIM_EVENT_FILTER = TEST_PRESENCE_CLAIM_CONTRACT.filters.Transfer(constants.FOAM_MINT_BURN_ADDRESS)
-const TEST_ZONE_CREATE_FILTER = TEST_ZONE_CONTRACT.filters.ZoneCreated()
-const TEST_ZONE_DESTROY_FILTER = TEST_ZONE_CONTRACT.filters.ZoneDestroyed()
+const PRESENCE_CLAIM_ABI = require('../abi/presence-claim.json')
+const ZONE_ABI = require('../abi/zone.json')
 
 
 async function getClaimEvents(fromBlock, toBlock, castArray, claimArray, zoneArray) {
-    console.log('getting test events')
-    const presenceClaimEvents = await retryApiCall(() => TEST_PRESENCE_CLAIM_CONTRACT.queryFilter(PRESENCE_CLAIM_EVENT_FILTER, fromBlock, toBlock))
+    console.log('getting claim events')
+    const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
+    const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
+    const PRESENCE_CLAIM_CONTRACT = new ethers.Contract(constants.FOAM_PRESENCE_CLAIM_ADDRESS, PRESENCE_CLAIM_ABI, provider)
+    const PRESENCE_CLAIM_EVENT_FILTER = PRESENCE_CLAIM_CONTRACT.filters.Transfer(constants.FOAM_MINT_BURN_ADDRESS)
+    const presenceClaimEvents = await retryApiCall(() => PRESENCE_CLAIM_CONTRACT.queryFilter(PRESENCE_CLAIM_EVENT_FILTER, fromBlock, toBlock))
     await Promise.all(presenceClaimEvents.map(async function(event) {
         let castObj = {};
         let claimObj = {};
@@ -41,18 +35,19 @@ async function getClaimEvents(fromBlock, toBlock, castArray, claimArray, zoneArr
         claimArray.push(claimObj);
         
     }));
-    console.log('done getting test events')
+    console.log('done getting claim events')
 }
 
 async function getFpcData(tokenId, castObj, claimObj, toAddress, zoneArray){
-    let anchor = await retryApiCall(() => TEST_PRESENCE_CLAIM_CONTRACT.distinctAnchors(tokenId))
-    let zoneId = (await retryApiCall(() => TEST_PRESENCE_CLAIM_CONTRACT.zone(tokenId)))
+    let anchor = await retryApiCall(() => PRESENCE_CLAIM_CONTRACT.distinctAnchors(tokenId))
+    let zoneId = (await retryApiCall(() => PRESENCE_CLAIM_CONTRACT.zone(tokenId)))
     zoneId = parseInt(zoneId._hex, 16)
     let zone = zoneArray.find(obj => obj._id === zoneId);
     let zoneName = zone.zoneName
-    let location = await retryApiCall(() => TEST_PRESENCE_CLAIM_CONTRACT.location(tokenId))
-    let timestamp = await retryApiCall(() => TEST_PRESENCE_CLAIM_CONTRACT.timestamp(tokenId))
-    let algo = await retryApiCall(() => TEST_PRESENCE_CLAIM_CONTRACT.localizationAlgorithm(tokenId))
+    let location = await retryApiCall(() => PRESENCE_CLAIM_CONTRACT.location(tokenId))
+    let timestamp = await retryApiCall(() => PRESENCE_CLAIM_CONTRACT.timestamp(tokenId))
+    let algo = await retryApiCall(() => PRESENCE_CLAIM_CONTRACT.localizationAlgorithm(tokenId))
+    let altitude = await retryApiCall(() => PRESENCE_CLAIM_CONTRACT.altitude(tokenId))
     let parsedLocation = convertHexToGeohash(location.slice(2))
     let latlon = geohash.decode(parsedLocation);
     let addressFirstEight = toAddress.substring(0, 8);
@@ -76,15 +71,20 @@ async function getFpcData(tokenId, castObj, claimObj, toAddress, zoneArray){
     claimObj.latlonLocation = {}
     claimObj.latlonLocation.latitude = latlon.latitude
     claimObj.latlonLocation.longitude = latlon.longitude
+    claimObj.altitude = parseInt(altitude._hex, 16)
     castObj.cast = `Grade ${algo} FOAM Presence Claim minted in Zone #${zoneId} (${zoneName}) on ${formattedDate}`
     castObj.etherUrl = `https://optimistic.etherscan.io/tx/${castObj.transactionHash}`
     castObj.mapsUrl = `https://www.google.com/maps?q=${latlon.latitude},${latlon.longitude}`
-    castObj.newUrl = `http://localhost:3000/?lat=${latlon.latitude}&lng=${lng=latlon.longitude}&tx=${claimObj.transactionHash.substring(1)}`
+    castObj.customUrl = `https://foamcaster.xyz/?lat=${latlon.latitude}&lng=${lng=latlon.longitude}&tx=${claimObj.transactionHash.substring(1)}`
 }
 
 async function getZoneCreations(fromBlock, toBlock, castArray, zoneCollection, zoneArray, newZones){
     console.log('getting zone creations')
-    let zones = await retryApiCall(() => TEST_ZONE_CONTRACT.queryFilter(TEST_ZONE_CREATE_FILTER, fromBlock, toBlock))
+    const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
+    const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
+    const ZONE_CONTRACT = new ethers.Contract(constants.ZONE_ADDRESS, ZONE_ABI, provider)
+    const ZONE_CREATE_FILTER = ZONE_CONTRACT.filters.ZoneCreated()
+    let zones = await retryApiCall(() => ZONE_CONTRACT.queryFilter(ZONE_CREATE_FILTER, fromBlock, toBlock))
     zones.forEach(function(zone){
         let zoneId = (Number(zone.args.zoneId, 16))
         let zoneName = zone.args.zoneName
@@ -112,7 +112,11 @@ async function getZoneCreations(fromBlock, toBlock, castArray, zoneCollection, z
 
 async function getZoneDestructions(fromBlock, toBlock, zoneArray, castArray, destroyedArray, newZones){
     console.log('getting zone destructions')
-    let zoneDestructions = await retryApiCall(() => TEST_ZONE_CONTRACT.queryFilter(TEST_ZONE_DESTROY_FILTER, fromBlock, toBlock))
+    const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
+    const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
+    const ZONE_CONTRACT = new ethers.Contract(constants.ZONE_ADDRESS, ZONE_ABI, provider)
+    const ZONE_DESTROY_FILTER = ZONE_CONTRACT.filters.ZoneDestroyed()
+    let zoneDestructions = await retryApiCall(() => ZONE_CONTRACT.queryFilter(ZONE_DESTROY_FILTER, fromBlock, toBlock))
     zoneDestructions.forEach(async function(destruction){
         let castObj = {}
         let zoneId = Number(destruction.args.zoneId,16)
@@ -133,20 +137,5 @@ async function getZoneDestructions(fromBlock, toBlock, zoneArray, castArray, des
 return destroyedArray, castArray, newZones
 }
 
-    async function main(){
-        let zoneArray = []
-        let castArray = []
-        let claimArray = []
-        let newZones = []
-        let destroyedArray = []
-        let zoneCollection = await getZoneCollection()
-
-        await getZoneCreations(castArray, zoneCollection, zoneArray, newZones) 
-        await getZoneDestructions(zoneArray, castArray, destroyedArray, newZones)
-        await getClaimEvents(castArray, claimArray, zoneArray);
-        await updateZones(newZones, destroyedArray, claimArray)
-    
-        }
-        // main()
     
 module.exports = { getClaimEvents, getZoneCreations, getZoneDestructions }
