@@ -30,7 +30,7 @@ async function getClaimEvents(fromBlock, toBlock, castArray, claimArray, zoneArr
         let toAddress = event.args[1];
         claimObj._id = fpc;
         claimObj.minter = toAddress;
-        await retryApiCall(() => getFpcData(fpc, castObj, claimObj, toAddress, zoneArray));
+        await retryApiCall(() => getFpcData(fpc, castObj, claimObj, toAddress, zoneArray, PRESENCE_CLAIM_CONTRACT));
         castArray.push(castObj);
         claimArray.push(claimObj);
         
@@ -38,7 +38,7 @@ async function getClaimEvents(fromBlock, toBlock, castArray, claimArray, zoneArr
     console.log('done getting claim events')
 }
 
-async function getFpcData(tokenId, castObj, claimObj, toAddress, zoneArray){
+async function getFpcData(tokenId, castObj, claimObj, toAddress, zoneArray, PRESENCE_CLAIM_CONTRACT){
     let anchor = await retryApiCall(() => PRESENCE_CLAIM_CONTRACT.distinctAnchors(tokenId))
     let zoneId = (await retryApiCall(() => PRESENCE_CLAIM_CONTRACT.zone(tokenId)))
     zoneId = parseInt(zoneId._hex, 16)
