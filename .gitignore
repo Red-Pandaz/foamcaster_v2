@@ -6,3 +6,5 @@ abi/DS_Store
 abi/.DS_Store
 .gcloudignore
 test.js
+package-lock.json   
+
