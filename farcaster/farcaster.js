@@ -16,7 +16,7 @@ async function sendCastsAndTweets(castArray) {
     
     let sentArray = [];
     // Organize by block height and remove duplicates
-    castArray.sort((a, b) => a.blockHeight - b.blockHeight);
+    castArray.sort((a, b) => a.timestamp - b.timestamp);
 
     const twitterClient = new TwitterApi({
         appKey: TWITTER_CONSUMER_KEY,
@@ -43,21 +43,21 @@ async function sendCastsAndTweets(castArray) {
                 if (castObject.customUrl) {
                     const [castPostResponse, tweetResponse] = await Promise.all([
                         sdk.postCast({
-                            text: castObject.cast,
-                            embeds: [{ url: `${castObject.customUrl}` }],
+                            text: `${castObject.cast} ${castObject.customUrl}`,
+                            // embeds: [{ url: castObject.customUrl }],
                             signer_uuid: SIGNER_UUID
                         }, { api_key: NEYNAR_API_KEY }),
-                        twitterClient.v2.tweet(`${castObject.cast} ${castObject.customUrl}`)
+                        // twitterClient.v2.tweet(`${castObject.cast} ${castObject.customUrl}`)
                     ]);
                     return [castPostResponse, tweetResponse];
                 } else {
                     const [castPostResponse, tweetResponse] = await Promise.all([
                         sdk.postCast({
-                            text: castObject.cast,
-                            embeds: { url: `${castObject.etherUrl}` },
+                            text: `${castObject.cast} ${castObject.etherUrl}`,
+                            // embeds: { url: castObject.etherUrl },
                             signer_uuid: SIGNER_UUID
                         }, { api_key: NEYNAR_API_KEY }),
-                        twitterClient.v2.tweet(`${castObject.cast} ${castObject.etherUrl}`)
+                        // twitterClient.v2.tweet(`${castObject.cast} ${castObject.etherUrl}`)
                     ]);
                     return [castPostResponse, tweetResponse];
                 }

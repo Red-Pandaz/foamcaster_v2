@@ -1,27 +1,36 @@
-//TODO: Add logic for LiFi and 0x
-//Change constants to main net contract addresses
-    const ethers = require('ethers');
-    const dotenv = require("dotenv").config();
-    const {filterMintBurns, filterAggregatorEvents, filterExchangeTransfers, handleUnfilteredTransfers, getTransferData} = require('./functions/tokenfunctions.js');
-    const { updateTimestamp, getLastTimestamp, updateZonesAndClaims, getZoneCollection } = require('./database/database.js');
-    const { getClaimEvents, getZoneCreations, getZoneDestructions } = require('./functions/locationfunctions.js')
-    const { retryApiCall, processTransferData, accessSecret } = require('./utils/apiutils.js');
-    const { sendCastsAndTweets } = require('./farcaster/farcaster.js');
-    const constants = require('./constants/constants.js');
-
-    exports.main = async (req, res) => {
+const ethers = require('ethers');
+const dotenv = require("dotenv").config();
+const {filterMintBurns, filterAggregatorEvents, filterExchangeTransfers, handleUnfilteredTransfers, handleUnfilteredBaseTransfers, getTransferData, getBaseTransferData, filterBaseExchangeEvents, filterBaseSwapEvents, filterBaseMintBurns} = require('./functions/tokenfunctions.js');
+const { updateTimestamp, getLastTimestamp, updateZonesAndClaims, getZoneCollection } = require('./database/database.js');
+const { getClaimEvents, getZoneCreations, getZoneDestructions } = require('./functions/locationfunctions.js')
+const { retryApiCall, processTransferData, accessSecret } = require('./utils/apiutils.js');
+const { sendCastsAndTweets } = require('./farcaster/farcaster.js');
+const constants = require('./constants/constants.js');
+    async function main(){
+    // exports.main = async (req, res) => {
         try{
 
             const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
+            const ALCHEMY_API = await retryApiCall(() => accessSecret('ALCHEMY_API'));
             const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
             let currentBlock = await retryApiCall(() => provider.getBlockWithTransactions('latest'))
+            const baseProvider = new ethers.providers.JsonRpcProvider(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API}`);
+            let baseCurrentBlock = await retryApiCall(() => baseProvider.getBlockWithTransactions('latest'))
             let currentTimestamp = Date.now();
-            let [lastBlock, lastTimestamp] = await getLastTimestamp()
+            let [lastBlock, lastTimestamp, lastBaseBlock] = await getLastTimestamp()
             let fromBlock = lastBlock + 1;
             let toBlock = currentBlock.number
+            let baseFromBlock = null
+
+            if(lastBaseBlock){
+                baseFromBlock = lastBaseBlock + 1
+            } else{
+                baseFromBlock = baseCurrentBlock.number - 200000
+            }
+            let baseToBlock = baseCurrentBlock.number
   
             let cronTime = 1800000;
-            let txMinimum = 25000;
+            let txMinimum = 10000;
             let castsToSend = [];
             let zoneArray = [];
             let claimArray = [];
@@ -44,18 +53,18 @@
             // If too much time has elapsed it does nothing but try to update and return
             if((currentTimestamp - lastTimestamp) > (cronTime * 3.75)){
                 console.log("Too much time in between timestamps, program risks recasting");
-                updateTimestamp(currentBlock.number, []);
+                updateTimestamp(currentBlock.number, baseCurrentBlock.number, []);
                 return;
             }
             console.log("START BLOCK: " + fromBlock);
             console.log("END BLOCK: " + toBlock);
     
-            await getZoneCreations(fromBlock, toBlock, castsToSend, zoneCollection, zoneArray, newZones);
-            await getZoneDestructions(fromBlock, toBlock, zoneArray, castsToSend, destroyedArray, newZones);
-            await getClaimEvents(fromBlock, toBlock, castsToSend, claimArray, zoneArray);
+            // await getZoneCreations(fromBlock, toBlock, castsToSend, zoneCollection, zoneArray, newZones);
+            // await getZoneDestructions(fromBlock, toBlock, zoneArray, castsToSend, destroyedArray, newZones);
+            // await getClaimEvents(fromBlock, toBlock, castsToSend, claimArray, zoneArray);
 
 
-            // Token ABIs
+            // Optimism Token ABIs
 
             const FOAM_TOKEN_ABI = JSON.parse(require('./abi/foamtoken.json').result);
             const UNI_V3_ABI = JSON.parse(require('./abi/univ3pool.json').result);
@@ -63,7 +72,13 @@
             const VELEDROME_POOL_ABI = JSON.parse(require('./abi/veledromepoolabi.json').result);
             const VELEDROME_LIQUIDITY_ABI = JSON.parse(require('./abi/veledromeliquidityabi.json').result);
 
-            // Token Contracts/Methods
+            // Base Token ABIs
+            const BASE_FOAM_TOKEN_ABI = JSON.parse(require('./abi/basefoamtoken.json').result);
+            const BASE_UNI_V3_ABI = JSON.parse(require('./abi/baseuniv3pool.json').result);
+            const BASE_UNI_V3_LIQUIDITY_ABI = JSON.parse(require('./abi/baseuniv3liquidity.json').result);
+
+
+            // Optimism Token Contracts/Methods
 
             const FOAM_TOKEN_CONTRACT = new ethers.Contract(constants.FOAM_ADDRESS, FOAM_TOKEN_ABI, provider);
             const UNI_V3_TOKEN_CONTRACT = new ethers.Contract(constants.UNI_V3_ADDRESS, UNI_V3_ABI, provider);
@@ -71,12 +86,17 @@
             const VELEDROME_POOL_CONTRACT = new ethers.Contract(constants.VELEDROME_POOL_ADDRESS, VELEDROME_POOL_ABI, provider);
             const VELEDROME_ROUTER_CONTRACT = new ethers.Contract(constants.VELEDROME_LIQUIDITY_TOKEN, VELEDROME_LIQUIDITY_ABI, provider);
 
-            // Token Filters
+            // Base Token Contracts/Methods
+            const BASE_FOAM_TOKEN_CONTRACT = new ethers.Contract(constants.BASE_FOAM_ADDRESS, BASE_FOAM_TOKEN_ABI, baseProvider);
+
+            // Optimism Token Filters
 
             const FOAM_TRANSFER_FILTER = FOAM_TOKEN_CONTRACT.filters.Transfer();
             
             const UNI_BUY_FILTER = FOAM_TOKEN_CONTRACT.filters.Transfer(constants.UNI_V3_ADDRESS, null );
             const UNI_SELL_FILTER= FOAM_TOKEN_CONTRACT.filters.Transfer(null, constants.UNI_V3_ADDRESS);
+
+
 
             const VELEDROME_BUY_FILTER = FOAM_TOKEN_CONTRACT.filters.Transfer(constants.VELEDROME_POOL_ADDRESS, null);
             const VELEDROME_SELL_FILTER = FOAM_TOKEN_CONTRACT.filters.Transfer(null, [constants.VELEDROME_EXECUTIVE_ADDRESS, constants.VELEDROME_POOL_ADDRESS]);
@@ -100,8 +120,23 @@
 
             const ARBITRAGE_TRADE_FILTER = FOAM_TOKEN_CONTRACT.filters.Transfer( [ constants.UNI_V3_ADDRESS, constants.VELEDROME_POOL_ADDRESS ], [ constants.UNI_V3_ADDRESS, constants.VELEDROME_POOL_ADDRESS ], null );
 
+
+            //Base Token Filters
+            const BASE_WETH_UNI_BUY_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(constants.BASE_UNIV3_WETH_ADDRESS , null );
+            const BASE_WETH_UNI_SELL_FILTER= BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(null, constants.BASE_UNIV3_WETH_ADDRESS );
     
-            // Retrieving filter information from constants
+            const BASE_USDC_UNI_BUY_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(constants.BASE_UNIV3_USDC_ADDRESS , null );
+            const BASE_USDC_UNI_SELL_FILTER= BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(null, constants.BASE_UNIV3_USDC_ADDRESS );
+            
+    
+            const BASE_FOAM_TRANSFER_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer();
+            const BASE_MINT_EVENT_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Mint();
+            const BASE_BURN_EVENT_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Burn();
+            const BASE_MINT_TRANSFER_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(constants.FOAM_MINT_BURN_ADDRESS, null);
+            const BASE_BURN_TRANSFER_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(null, constants.FOAM_MINT_BURN_ADDRESS);
+
+    
+            // Optimism filter constants
                 const filterConstants = [
                 { name: "uniOutgoingXfers", filter: UNI_BUY_FILTER },
                 { name: "uniIncomingXfers", filter: UNI_SELL_FILTER },
@@ -121,10 +156,24 @@
                 { name: "burnTransfers", filter: BURN_TRANSFER_FILTER },
                 { name: "allTransfers", filter: FOAM_TRANSFER_FILTER }
             ];
+
+            //Base filter constants
+            const baseFilterConstants = [
+            
+                { name: "baseUniWETHOutgoingXfers", filter: BASE_WETH_UNI_BUY_FILTER },
+                { name: "baseUniWETHIncomingXfers", filter: BASE_WETH_UNI_SELL_FILTER },
+                { name: "baseUniUSDCOutgoingXfers", filter: BASE_USDC_UNI_BUY_FILTER },
+                { name: "baseUniUSDCIncomingXfers", filter: BASE_USDC_UNI_SELL_FILTER },
+                { name: "baseMintEvents", filter: BASE_MINT_EVENT_FILTER },
+                { name: "baseMintTransfers", filter: BASE_MINT_TRANSFER_FILTER },
+                { name: "baseBurnEvents", filter: BASE_BURN_EVENT_FILTER },
+                { name: "baseBurnTransfers", filter: BASE_BURN_TRANSFER_FILTER },
+                { name: "allBaseTransfers", filter: BASE_FOAM_TRANSFER_FILTER }
+            ]
        
                 // Scanning chain for Transfer events
                 const filterResults = await getTransferData(filterConstants, fromBlock, toBlock);
-    
+                const baseFilterResults = await getBaseTransferData(baseFilterConstants, baseFromBlock, baseToBlock);
                 // Getting ready to process filterResults
                 const {
                     oneInchBuys,
@@ -145,40 +194,77 @@
                     burnTransfers,
                     allTransfers
                 } = filterResults
+
+                const {
+                    baseMintEvents,
+                    baseMintTransfers,
+                    baseBurnEvents,
+                    baseBurnTransfers,
+                    allBaseTransfers,
+                    baseUniWETHOutgoingXfers,
+                    baseUniWETHIncomingXfers,
+                    baseUniUSDCOutgoingXfers,
+                    baseUniUSDCIncomingXfers,
+                } = baseFilterResults
             
          //Aggregator events MUST be caught before exchange events get processed
          const unprocessedCalls = [
-            { name: "oneInchBuys", func: filterAggregatorEvents, args: [oneInchBuys, castsToSend, "$FOAM bought via 1inch", txMinimum] },
-            { name: "oneInchSells", func: filterAggregatorEvents, args: [oneInchSells, castsToSend, "$FOAM sold via 1inch", txMinimum] },
-            { name: "odosBuys", func: filterAggregatorEvents, args: [odosBuys, castsToSend, "$FOAM bought via Odos", txMinimum] },
-            { name: "odosSells", func: filterAggregatorEvents, args: [odosSells, castsToSend, "$FOAM sold via Odos", txMinimum] },
-            { name: "paraswapBuys", func: filterAggregatorEvents, args: [paraswapBuys, castsToSend, "$FOAM bought via Paraswap", txMinimum] },
-            { name: "paraswapSells", func: filterAggregatorEvents, args: [paraswapSells, castsToSend, "$FOAM sold via Paraswap", txMinimum] },
-            { name: "okxBuys", func: filterAggregatorEvents, args: [okxBuys, castsToSend, "$FOAM bought via OKX", txMinimum] },
-            { name: "okxSells", func: filterAggregatorEvents, args: [okxSells, castsToSend, "$FOAM sold via OKX", txMinimum] },
-            { name: "uniOutgoingXfers", func: filterExchangeTransfers, args: [uniOutgoingXfers, constants.UNI_V3_ADDRESS, UNI_V3_ABI, castsToSend, "$FOAM bought on UniV3", "Swap", txMinimum] },
-            { name: "uniIncomingXfers", func: filterExchangeTransfers, args: [uniIncomingXfers, constants.UNI_V3_ADDRESS, UNI_V3_ABI, castsToSend, "$FOAM sold on UniV3", "Swap", txMinimum] },
-            { name: "veledromeOutgoingXfers", func: filterExchangeTransfers, args: [veledromeOutgoingXfers, constants.VELEDROME_POOL_ADDRESS, VELEDROME_POOL_ABI, castsToSend, "$FOAM bought on Veledrome", "Swap", txMinimum] },
-            { name: "veledromeIncomingXfers", func: filterExchangeTransfers, args: [veledromeIncomingXfers, constants.VELEDROME_POOL_ADDRESS, VELEDROME_POOL_ABI, castsToSend, "$FOAM sold on Veledrome", "Swap", txMinimum] },
-            { name: "uniOutgoingXfers2", func: filterExchangeTransfers, args: [uniOutgoingXfers, constants.UNI_V3_LIQUIDITY_ADDRESS, UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM removed from liquidity on UniV3", "DecreaseLiquidity", txMinimum] },
-            { name: "uniIncomingXfers2", func: filterExchangeTransfers, args: [uniIncomingXfers, constants.UNI_V3_LIQUIDITY_ADDRESS, UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM added to liquidity on UniV3", "IncreaseLiquidity", txMinimum] },
-            { name: "veledromeOutgoingXfers2", func: filterExchangeTransfers, args: [veledromeOutgoingXfers, constants.VELEDROME_LIQUIDITY_TOKEN, VELEDROME_LIQUIDITY_ABI, castsToSend, "$FOAM removed from liquidity on Veledrome", "Burn", txMinimum] },
-            { name: "veledromeIncomingXfers2", func: filterExchangeTransfers, args: [veledromeIncomingXfers, constants.VELEDROME_LIQUIDITY_TOKEN, VELEDROME_LIQUIDITY_ABI, castsToSend, "$FOAM added to liquidity on Veledrome", "Mint", txMinimum] }
+            { name: "oneInchBuys", func: filterAggregatorEvents, args: [oneInchBuys, castsToSend, "$FOAM bought via 1inch (Optimism):", txMinimum] },
+            { name: "oneInchSells", func: filterAggregatorEvents, args: [oneInchSells, castsToSend, "$FOAM sold via 1inch (Optimism):", txMinimum] },
+            { name: "odosBuys", func: filterAggregatorEvents, args: [odosBuys, castsToSend, "$FOAM bought via Odos (Optimism):", txMinimum] },
+            { name: "odosSells", func: filterAggregatorEvents, args: [odosSells, castsToSend, "$FOAM sold via Odos (Optimism):", txMinimum] },
+            { name: "paraswapBuys", func: filterAggregatorEvents, args: [paraswapBuys, castsToSend, "$FOAM bought via Paraswap (Optimism):", txMinimum] },
+            { name: "paraswapSells", func: filterAggregatorEvents, args: [paraswapSells, castsToSend, "$FOAM sold via Paraswap (Optimism):", txMinimum] },
+            { name: "okxBuys", func: filterAggregatorEvents, args: [okxBuys, castsToSend, "$FOAM bought via OKX (Optimism):", txMinimum] },
+            { name: "okxSells", func: filterAggregatorEvents, args: [okxSells, castsToSend, "$FOAM sold via OKX (Optimism):", txMinimum] },
+            { name: "uniOutgoingXfers", func: filterExchangeTransfers, args: [uniOutgoingXfers, constants.UNI_V3_ADDRESS, UNI_V3_ABI, castsToSend, "$FOAM bought on UniV3 (Optimism):", "Swap", txMinimum] },
+            { name: "uniIncomingXfers", func: filterExchangeTransfers, args: [uniIncomingXfers, constants.UNI_V3_ADDRESS, UNI_V3_ABI, castsToSend, "$FOAM sold on UniV3 (Optimism):", "Swap", txMinimum] },
+            { name: "veledromeOutgoingXfers", func: filterExchangeTransfers, args: [veledromeOutgoingXfers, constants.VELEDROME_POOL_ADDRESS, VELEDROME_POOL_ABI, castsToSend, "$FOAM bought on Veledrome (Optimism):", "Swap", txMinimum] },
+            { name: "veledromeIncomingXfers", func: filterExchangeTransfers, args: [veledromeIncomingXfers, constants.VELEDROME_POOL_ADDRESS, VELEDROME_POOL_ABI, castsToSend, "$FOAM sold on Veledrome (Optimism):", "Swap", txMinimum] },
+            { name: "uniOutgoingXfers2", func: filterExchangeTransfers, args: [uniOutgoingXfers, constants.UNI_V3_LIQUIDITY_ADDRESS, UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM removed from liquidity on UniV3 (Optimism):", "DecreaseLiquidity", txMinimum] },
+            { name: "uniIncomingXfers2", func: filterExchangeTransfers, args: [uniIncomingXfers, constants.UNI_V3_LIQUIDITY_ADDRESS, UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM added to liquidity on UniV3 (Optimism):", "IncreaseLiquidity", txMinimum] },
+            { name: "veledromeOutgoingXfers2", func: filterExchangeTransfers, args: [veledromeOutgoingXfers, constants.VELEDROME_LIQUIDITY_TOKEN, VELEDROME_LIQUIDITY_ABI, castsToSend, "$FOAM removed from liquidity on Veledrome (Optimism):", "Burn", txMinimum] },
+            { name: "veledromeIncomingXfers2", func: filterExchangeTransfers, args: [veledromeIncomingXfers, constants.VELEDROME_LIQUIDITY_TOKEN, VELEDROME_LIQUIDITY_ABI, castsToSend, "$FOAM added to liquidity on Veledrome (Optimism):", "Mint", txMinimum] }
         ];
             // Processing all events that requiring additional chain querying
             const filterResults2 = await processTransferData(unprocessedCalls);
+
+                     //Aggregator events MUST be caught before exchange events get processed
+         const unprocessedBaseCalls = [
+            { name: "uniWETHOutgoingXfers", func: filterBaseExchangeEvents, args: [baseUniWETHOutgoingXfers, constants.BASE_UNIV3_WETH_ADDRESS, BASE_UNI_V3_ABI, castsToSend, "$FOAM bought on UniV3 (Base):", "Swap", txMinimum] }, 
+            { name: "uniWETHIncomingXfers", func: filterBaseExchangeEvents, args: [baseUniWETHIncomingXfers, constants.BASE_UNIV3_WETH_ADDRESS, BASE_UNI_V3_ABI, castsToSend, "$FOAM sold on UniV3 (Base):", "Swap", txMinimum] },
+            { name: "uniWETHOutgoingXfers2", func: filterBaseExchangeEvents, args: [baseUniWETHOutgoingXfers, constants.BASE_UNIV3_LIQUIDITY_ADDRESS, BASE_UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM removed from $WETH liquidity pool on UniV3 (Base):", "DecreaseLiquidity", txMinimum] },
+            { name: "uniWETHIncomingXfers2", func: filterBaseExchangeEvents, args: [baseUniWETHIncomingXfers, constants.BASE_UNIV3_LIQUIDITY_ADDRESS, BASE_UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM added to $WETH liquidity pool on UniV3 (Base):", "IncreaseLiquidity", txMinimum] },
+            
+            { name: "uniUSDCOutgoingXfers", func: filterBaseExchangeEvents, args: [baseUniUSDCOutgoingXfers, constants. BASE_UNIV3_USDC_ADDRESS, BASE_UNI_V3_ABI, castsToSend, "$FOAM bought on UniV3 (Base):", "Swap", txMinimum] },
+            { name: "uniUSDCIncomingXfers", func: filterBaseExchangeEvents, args: [baseUniUSDCIncomingXfers, constants. BASE_UNIV3_USDC_ADDRESS, BASE_UNI_V3_ABI, castsToSend, "$FOAM sold on UniV3 (Base):", "Swap", txMinimum] },
+            { name: "uniUSDCOutgoingXfers2", func: filterBaseExchangeEvents, args: [baseUniUSDCOutgoingXfers, constants.BASE_UNIV3_LIQUIDITY_ADDRESS, BASE_UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM removed from $USDC liquidity pool on UniV3 (Base):", "DecreaseLiquidity", txMinimum] },
+            { name: "uniUSDCIncomingXfers2", func: filterBaseExchangeEvents, args: [baseUniUSDCIncomingXfers, constants.BASE_UNIV3_LIQUIDITY_ADDRESS, BASE_UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM added to $USDC liquidity pool on UniV3 (Base):", "IncreaseLiquidity", txMinimum] },
+        ];
+
+              // Processing all events that requiring additional chain querying
+        const baseFilterResults2 = await processTransferData(unprocessedBaseCalls);
         
-            // Processing remaining events that don't require additional chain querying
-            filterMintBurns(mintTransfers, mintEvents, castsToSend, "$FOAM bridged to Optimism from L1", txMinimum);
-            filterMintBurns(burnTransfers, burnEvents, castsToSend, "$FOAM bridged to L1 from Optimism", txMinimum);
+        
+            // Processing remaining Optimism events that don't require additional chain querying
+            await filterMintBurns(mintTransfers, mintEvents, castsToSend, "$FOAM bridged to Optimism from L1:", txMinimum);
+            await filterMintBurns(burnTransfers, burnEvents, castsToSend, "$FOAM bridged to L1 from Optimism:", txMinimum);
          
-            handleUnfilteredTransfers(allTransfers, castsToSend, "$FOAM transferred on Optimism", txMinimum);
+            await handleUnfilteredTransfers(allTransfers, castsToSend, "$FOAM transferred on Optimism:", txMinimum);
+
+
+            // Processing remaining Base events that don't require additional chain querying
+            await filterBaseMintBurns(baseMintTransfers, baseMintEvents, castsToSend, "$FOAM bridged to Base from L1:", txMinimum);
+            await filterBaseMintBurns(baseBurnTransfers, baseBurnEvents, castsToSend, "$FOAM bridged to L1 from Base:", txMinimum);
+
+            await handleUnfilteredBaseTransfers(allBaseTransfers, castsToSend, "$FOAM transferred on Base:", txMinimum);
+
           
             //Final processing, sent casts out and update databases before returning
-
-            let sentCastArray = await sendCastsAndTweets(castsToSend);
-            await updateZonesAndClaims(newZones, destroyedArray, claimArray)
-            // await updateTimestamp(currentBlock.number, sentCastArray);
+            console.log(castsToSend)
+            // let sentCastArray = await sendCastsAndTweets(castsToSend);
+            // await updateZonesAndClaims(newZones, destroyedArray, claimArray)
+            // await updateTimestamp(currentBlock.number, baseCurrentBlock.number, sentCastArray);
         }catch(err){
         console.log(err)
         return
@@ -186,3 +272,5 @@
         console.log("Cloud Function executed");
         return
     }
+
+    main()

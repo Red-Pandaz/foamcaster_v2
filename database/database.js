@@ -74,15 +74,17 @@ async function getZoneCollection() {
     }
 }
 
-async function updateTimestamp(blockHeight, castArray) {
+async function updateTimestamp(blockHeight, baseBlockHeight, castArray) {
     let newTimestampObj = {
         timestamp: Date.now(),
         blockstamp: blockHeight,
+        baseBlockStamp: baseBlockHeight,
         casts: castArray
     };
 
     try {
         await retryApiCall(() => pushFoamDB(newTimestampObj));
+        console.log("New timestamp generated: " + newTimestampObj)
     } catch (error) {
         console.error('Error updating timestamp:', error);
         // Handle the error if needed
@@ -114,7 +116,8 @@ async function getLastTimestampInternal() {
         if (lastObject.length > 0) {
             const lastBlockHeight = lastObject[0].blockstamp;
             const lastTimestamp = lastObject[0].timestamp;
-            return [lastBlockHeight, lastTimestamp];
+            const lastBaseBlockHeight = lastObject[0].baseBlockstamp
+            return [lastBlockHeight, lastTimestamp, lastBaseBlockHeight];
         } else {
             return null;
         }

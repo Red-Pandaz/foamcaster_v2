@@ -4,7 +4,7 @@ const constants = require('../constants/constants.js');
 
 
 // There is a bit of redundancy here but transfers to and from the mint/burn address are cross-referenced against mint/burn events
-function filterMintBurns(eventArray1, eventArray2, resultArray, messageTemplate, txMinimum) {
+async function filterMintBurns(eventArray1, eventArray2, resultArray, messageTemplate, txMinimum) {
     if(!eventArray1 || !eventArray2){
         return
     }
@@ -19,12 +19,49 @@ function filterMintBurns(eventArray1, eventArray2, resultArray, messageTemplate,
         if(txValue >= txMinimum){
             let formattedTxValue = txValue.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",")
             let castMessage = `${formattedTxValue} ${messageTemplate}`
+            let block = await baseProvider.getBlock(filteredEvent.blockNumber)
             let newObject = {
                 transactionHash: filteredEvent.transactionHash,
                 blockHeight: filteredEvent.blockNumber,
+                timestamp: block.timestamp,
                 value: parseInt(ethers.BigNumber.from(txValue).toString()),
                 cast: castMessage,
                 etherUrl: `https://optimistic.etherscan.io/tx/${filteredEvent.transactionHash}`
+            };
+            resultArray.push(newObject);
+           
+        }
+    };
+    return filteredEvents;
+}
+
+//Base Mints and Burns
+
+async function filterBaseMintBurns(eventArray1, eventArray2, resultArray, messageTemplate, txMinimum) {
+    const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
+    const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
+    if(!eventArray1 || !eventArray2){
+        return
+    }
+    const filteredEvents = eventArray1.filter(event1 =>
+        eventArray2.some(event2 => event2.transactionHash === event1.transactionHash)
+    );
+    for (const filteredEvent of filteredEvents) {
+        if (resultArray.some(obj => obj.transactionHash === filteredEvent.transactionHash)) {
+            continue;
+        }
+        let txValue = ethers.BigNumber.from(Math.round(filteredEvent.args.value* Math.pow(10, -16) / 100))
+        if(txValue >= txMinimum){
+            let formattedTxValue = txValue.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",")
+            let castMessage = `${formattedTxValue} ${messageTemplate}`
+            let block = await provider.getBlock(filteredEvent.blockNumber)
+            let newObject = {
+                transactionHash: filteredEvent.transactionHash,
+                blockHeight: filteredEvent.blockNumber,
+                timestamp: block.timestamp,
+                value: parseInt(ethers.BigNumber.from(txValue).toString()),
+                cast: castMessage,
+                etherUrl: `https://basescan.org/tx/${filteredEvent.transactionHash}`
             };
             resultArray.push(newObject);
            
@@ -76,9 +113,11 @@ async function filterExchangeTransfers(eventArray, contractAddress, contractABI,
                     if (txValue >= txMinimum) {
                         let formattedTxValue = txValue.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",")
                         let castMessage = `${formattedTxValue} ${messageTemplate}`
+                        let block = await provider.getBlock(event.blockNumber)
                         let newObject = {
                             transactionHash: event.transactionHash,
                             blockHeight: event.blockNumber,
+                            timestamp: block.timestamp,
                             value: parseInt(ethers.BigNumber.from(txValue).toString()),
                             cast: castMessage,
                             etherUrl: `https://optimistic.etherscan.io/tx/${event.transactionHash}`
@@ -150,11 +189,13 @@ async function filterAggregatorEvents(events, resultArray, messageTemplate, txMi
        
         if (transferTotal >= txMinimum) {
             let formattedTxValue = Math.round(transferTotal);
-            reFormattedTxValue = formattedTxValue.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",")
-            let castMessage = `${reFormattedTxValue} ${messageTemplate}`;
+            formattedTxValue = formattedTxValue.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",")
+            let castMessage = `${formattedTxValue} ${messageTemplate}`;
+            let block = await provider.getBlock(event.blockNumber)
             let newObject = {
                 transactionHash: event.transactionHash,
                 blockHeight: event.blockNumber,
+                timestamp: block.timestamp,
                 value: formattedTxValue,
                 cast: castMessage,
                 etherUrl: `https://optimistic.etherscan.io/tx/${event.transactionHash}`
@@ -165,7 +206,9 @@ async function filterAggregatorEvents(events, resultArray, messageTemplate, txMi
 }
 
 //After processing all notable events, anything that does not have a txnHash in the cast array is treated as a regular tx
-function handleUnfilteredTransfers(transfers, resultArray, messageTemplate, txMinimum){
+async function handleUnfilteredTransfers(transfers, resultArray, messageTemplate, txMinimum){
+    const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
+    const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
     for(let transfer of transfers){
         if(resultArray.some(obj => obj.transactionHash === transfer.transactionHash)){
             continue;
@@ -175,13 +218,43 @@ function handleUnfilteredTransfers(transfers, resultArray, messageTemplate, txMi
             continue;
         }
         let formattedTxValue = txValue.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",")
-        let castMessage = `${formattedTxValue} ${messageTemplate}${transfer.transactionHash}`
+        let castMessage = `${formattedTxValue} ${messageTemplate}`
+        let block = await provider.getBlock(transfer.blockNumber)
         let newObject = {
             transactionHash: transfer.transactionHash,
             blockHeight: transfer.blockNumber,
+            timestamp: block.timestamp,
             value: parseInt(ethers.BigNumber.from(txValue).toString()),
             cast: castMessage,
             etherUrl: `https://optimistic.etherscan.io/tx/${transfer.transactionHash}`
+        }
+        resultArray.push(newObject)
+    }
+
+}
+
+//After processing all notable events, anything that does not have a txnHash in the cast array is treated as a regular tx
+async function handleUnfilteredBaseTransfers(transfers, resultArray, messageTemplate, txMinimum){
+    const ALCHEMY_API = await retryApiCall(() => accessSecret('ALCHEMY_API'));
+    const baseProvider = new ethers.providers.JsonRpcProvider(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API}`);
+    for(let transfer of transfers){
+        if(resultArray.some(obj => obj.transactionHash === transfer.transactionHash)){
+            continue;
+        }
+        let txValue = ethers.BigNumber.from(Math.round(transfer.args.value * Math.pow(10, -16) / 100))
+        if(txValue < txMinimum){
+            continue;
+        }
+        let formattedTxValue = txValue.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",")
+        let castMessage = `${formattedTxValue} ${messageTemplate}`
+        let block = await baseProvider.getBlock(transfer.blockNumber)
+        let newObject = {
+            transactionHash: transfer.transactionHash,
+            blockHeight: transfer.blockNumber,
+            timestamp: block.timestamp,
+            value: parseInt(ethers.BigNumber.from(txValue).toString()),
+            cast: castMessage,
+            etherUrl: `https://basescan.org/tx/${transfer.transactionHash}`
         }
         resultArray.push(newObject)
     }
@@ -207,12 +280,177 @@ async function getTransferData(filterConstants, fromBlock, toBlock) {
     return results;
 }
 
+// Utility function made to wrap initial event scanning into error handling
+async function getBaseTransferData(filterConstants, fromBlock, toBlock) {
+    const BASE_FOAM_TOKEN_ABI = JSON.parse(require('../abi/foamtoken.json').result);
+    const ALCHEMY_API = await retryApiCall(() => accessSecret('ALCHEMY_API'));
+    const baseProvider = new ethers.providers.JsonRpcProvider(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API}`);
+    const BASE_FOAM_TOKEN_CONTRACT = new ethers.Contract(constants.BASE_FOAM_ADDRESS, BASE_FOAM_TOKEN_ABI, baseProvider);
+    const results = {};
+    for (const { name, filter } of filterConstants) {
+        try {
+            const apiCall = () => BASE_FOAM_TOKEN_CONTRACT.queryFilter(filter, fromBlock, toBlock);
+            results[name] = await retryApiCall(apiCall); 
+        } catch (error) {
+            console.error(`Error processing ${name}: ${error}`);
+            return;
+        }
+    }
+    return results;
+}
+
+
+
+async function filterBaseExchangeEvents(eventArray, contractAddress, contractABI, resultArray, messageTemplate, contractMethod, txMinimum){
+    const ALCHEMY_API = await retryApiCall(() => accessSecret('ALCHEMY_API'));
+    const baseProvider = new ethers.providers.JsonRpcProvider(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API}`);
+    if(!eventArray){
+        return
+    }
+    let newContract = new ethers.Contract(contractAddress, contractABI, baseProvider)
+    let newContractFilter = null
+    if (contractMethod === "Swap"){
+        newContractFilter = newContract.filters.Swap()
+    }else if(contractMethod === "IncreaseLiquidity"){
+        newContractFilter = newContract.filters.IncreaseLiquidity()
+    }else if(contractMethod === "DecreaseLiquidity"){
+        newContractFilter = newContract.filters.DecreaseLiquidity()
+    }else{
+        return
+    }
+   
+    outerLoop:
+    for (let i = 0; i < eventArray.length; i++) {
+        let event = eventArray[i];
+     
+        // Confirming non-existence of event's tx hash before proceeding
+        if (resultArray.some(obj => obj.transactionHash === event.transactionHash)) {
+            continue outerLoop;
+        }
+        let blockMatch = await retryApiCall(() => newContract.queryFilter(newContractFilter, event.blockNumber, event.blockNumber));
+        if (blockMatch) {
+            for (let j = 0; j < blockMatch.length; j++) {
+                let match = blockMatch[j];
+                if (match.transactionHash === event.transactionHash) {
+                    
+                    if (contractMethod === "Swap"){
+                        filterBaseSwapEvents(event, resultArray, messageTemplate, txMinimum)
+                    } else{
+                        let txValue = ethers.BigNumber.from(Math.round(event.args.value * Math.pow(10, -16) / 100))
+                        if (txValue >= txMinimum) {
+                            let formattedTxValue = txValue.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",")
+                            let castMessage = `${formattedTxValue} ${messageTemplate}`
+                            let block = await baseProvider.getBlock(event.blockNumber)
+                            let newObject = {
+                                transactionHash: event.transactionHash,
+                                blockHeight: event.blockNumber,
+                                timestamp: block.timestamp,
+                                value: parseInt(ethers.BigNumber.from(txValue).toString()),
+                                cast: castMessage,
+                                etherUrl: `https://basescan.org/tx/${event.transactionHash}`
+                            };
+                            resultArray.push(newObject);
+                            continue outerLoop;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+}
+
+
+async function filterBaseSwapEvents(event, resultArray, messageTemplate, txMinimum){ 
+    const ALCHEMY_API = await retryApiCall(() => accessSecret('ALCHEMY_API'));
+    const baseProvider = new ethers.providers.JsonRpcProvider(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API}`);
+    // Instantly returns if no events to process
+    if (!event) {
+        return;
+    }
+        let netTransfer = {}; 
+        //continues if tx hash is found in array
+        if (resultArray.some(obj => obj.transactionHash === event.transactionHash)) {
+            return
+        }
+        // Getting transaction receipt for event  
+        let receipt = await retryApiCall(() =>  baseProvider.getTransactionReceipt(event.transactionHash));
+        let logs = receipt.logs;
+        let rewardFees = 0
+
+        // Selecting only events interacting with the FOAM contract
+        logs = logs.filter(log => log.address === constants.BASE_FOAM_ADDRESS);
+        for (let log of logs) {
+
+            // This is a very important check. Without this non-Transfer FOAM contract events like Approve can interfere with calculations
+            if (log.topics[0] !== constants.FOAM_TOKEN_XFER_METHOD) {
+                continue;
+            }
+
+            const [sender, receiver] = log.topics.slice(1);
+            
+           
+            if (!(sender in netTransfer)) {
+                netTransfer[sender] = 0;
+            }
+            if (!(receiver in netTransfer)) {
+                netTransfer[receiver] = 0;
+            }
+
+            let logValue = (parseInt(log.data, 16)) * Math.pow(10, -18);
+
+            // Update net transfers based on sender and receiver
+            netTransfer[sender] -= logValue; 
+            netTransfer[receiver] += logValue;
+            if(sender === constants.BASE_UNIV3_ROUTER_ADDRESS_TOPIC && receiver === constants.BASE_UNIV3_REWARDS_ADDRESS_TOPIC){
+                rewardFees += logValue
+                console.log(rewardFees)
+            }  
+        }
+
+        // Calculating the total amount of FOAM transfered by adding up only recieving numbers
+        // This is a very big part of why aggregator transactions have to be handled separately
+        // If for example someone used an aggregator and used two exchanges each with 80% of the tx threshold it would be overlooked
+        let transferTotal = 0;
+        const values = Object.values(netTransfer);
+        values.forEach(value => {
+            if (value > 0) {
+                transferTotal += value;
+            }
+         
+        });
+        transferTotal -= rewardFees
+
+       
+        if (transferTotal >= txMinimum) {
+            let formattedTxValue = Math.round(transferTotal);
+            formattedTxValue = formattedTxValue.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",")
+            let castMessage = `${formattedTxValue} ${messageTemplate}`;
+            let block = await baseProvider.getBlock(event.blockNumber)
+            let newObject = {
+                transactionHash: event.transactionHash,
+                blockHeight: event.blockNumber,
+                timestamp: block.timestamp,
+                value: formattedTxValue,
+                cast: castMessage,
+                etherUrl: `https://basescan.org/tx/${event.transactionHash}`
+            };
+            resultArray.push(newObject);
+        }
+    }
+
+
 
 module.exports = { 
     filterMintBurns,
     filterAggregatorEvents,
     filterExchangeTransfers,
     handleUnfilteredTransfers,
-    getTransferData
+    handleUnfilteredBaseTransfers,
+    getTransferData,
+    getBaseTransferData,
+    filterBaseExchangeEvents,
+    filterBaseSwapEvents,
+    filterBaseMintBurns
 };
 
