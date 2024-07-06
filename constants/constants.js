@@ -1,9 +1,9 @@
 const ethers = require('ethers')
-const { accessSecret, retryApiCall } = require('../utils/apiutils.js')
+// const { accessSecret, retryApiCall } = require('../utils/apiutils.js')
 // const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
-const INFURA_API = process.env.INFURA_API
-const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
-const testProvider =  new ethers.providers.JsonRpcProvider(`https://devnet-l2.foam.space/api/eth-rpc`);
+// const INFURA_API = process.env.INFURA_API
+// const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
+// const testProvider =  new ethers.providers.JsonRpcProvider(`https://devnet-l2.foam.space/api/eth-rpc`);
 
 // Token Addresses
 const L1_FOAM_ADDRESS = '0x4946Fcea7C692606e8908002e55A582af44AC121'
@@ -17,8 +17,11 @@ const BASE_UNIV3_LIQUIDITY_ADDRESS = '0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1
 
 const BASE_UNIV3_ROUTER_ADDRESS = '0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD'
 const BASE_UNIV3_REWARDS_ADDRESS_TOPIC = '0x0000000000000000000000005d64d14d2cf4fe5fe4e65b1c7e3d11e18d493091'
-
 const BASE_UNIV3_ROUTER_ADDRESS_TOPIC = '0x0000000000000000000000003fc91a3afd70395cd496c647d5a6cc9d4b2b7fad'
+const BASE_PARASWAP_ROUTER_ADDRESS = '0x59C7C832e96D2568bea6db468C1aAdcbbDa08A52'
+const BASE_ONE_INCH_ROUTER_ADDRESS = '0xE37e799D5077682FA0a244D46E5649F71457BD09'
+
+
 
 const FOAM_ADDRESS = '0x79E6c6b6aABA4432FAbacB30cC0C879D8f3E598e';
 const FOAM_MINT_BURN_ADDRESS = '0x0000000000000000000000000000000000000000';
@@ -48,6 +51,8 @@ const TEST_GOSSIP_UTILS_ADDRESS = '0xd0D7687C0612A128E907061E919ea44AB0c99b17'
 const TEST_PRESENCE_CLAIM_BOUNTY_ADDRESS = '0x0f7d71925A8FAB24666fd7f4d8Ac6AbD53051d42'
 const TEST_ZONE_ADDRESS = '0x2B66f5cB7287C6DEfBaF211dF6F9FC003da78160'
 const TEST_FOAM_PRESENCE_CLAIM_ADDRESS = '0x62894DF7e66939e59a20722D713015EBF118B8dA'
+// const ZONE_ADDRESS ='0x2B66f5cB7287C6DEfBaF211dF6F9FC003da78160'
+// const FOAM_PRESENCE_CLAIM_ADDRESS = '0x62894DF7e66939e59a20722D713015EBF118B8dA'
 const ZONE_ADDRESS = null
 const FOAM_PRESENCE_CLAIM_ADDRESS = null
 

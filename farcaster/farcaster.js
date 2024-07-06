@@ -1,8 +1,9 @@
 const dotenv = require("dotenv").config();
-const sdk = require('api')('@neynar/v2.0#79zo2aluds8jrx');
 const { TwitterApi } = require('twitter-api-v2');
 const crypto = require('crypto'); // Import the crypto module
 const { retryApiCall, accessSecret } = require('../utils/apiutils.js');
+const fetch = require('node-fetch');
+const url = 'https://api.neynar.com/v2/farcaster/cast';
 
 async function sendCastsAndTweets(castArray) {
     const TWITTER_CONSUMER_KEY = await retryApiCall(() => accessSecret('TWITTER_CONSUMER_KEY'))
@@ -27,6 +28,7 @@ async function sendCastsAndTweets(castArray) {
         
     for (let i = 0; i < castArray.length; i++) {
         const castObject = castArray[i];
+        console.log(castObject.timestamp)
     
         // Check if the transaction hash has already been sent
         if (sentHashesMap.has(castObject.transactionHash)) {
@@ -41,25 +43,47 @@ async function sendCastsAndTweets(castArray) {
         const result = await retryApiCall(async () => {
             try{
                 if (castObject.customUrl) {
-                    const [castPostResponse, tweetResponse] = await Promise.all([
-                        sdk.postCast({
-                            text: `${castObject.cast} ${castObject.customUrl}`,
-                            // embeds: [{ url: castObject.customUrl }],
-                            signer_uuid: SIGNER_UUID
-                        }, { api_key: NEYNAR_API_KEY }),
-                        // twitterClient.v2.tweet(`${castObject.cast} ${castObject.customUrl}`)
-                    ]);
-                    return [castPostResponse, tweetResponse];
+                    const options = {
+                        method: 'POST',
+                        headers: {
+                            accept: 'application/json',
+                            api_key: NEYNAR_API_KEY,
+                            'content-type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            parent_author_fid: 420154,
+                            signer_uuid: SIGNER_UUID,
+                            text: castObject.cast,
+                            embeds: [{url: castObject.customUrl}]
+                        })
+                        };
+                        const [castPostResponse, tweetResponse] = await Promise.all([
+                            fetch(url, options).then(res => res.json()),
+                            twitterClient.v2.tweet(`${castObject.cast} ${castObject.customUrl}`)
+                        ]);
+        
+                        return [castPostResponse, tweetResponse];
                 } else {
-                    const [castPostResponse, tweetResponse] = await Promise.all([
-                        sdk.postCast({
-                            text: `${castObject.cast} ${castObject.etherUrl}`,
-                            // embeds: { url: castObject.etherUrl },
-                            signer_uuid: SIGNER_UUID
-                        }, { api_key: NEYNAR_API_KEY }),
-                        // twitterClient.v2.tweet(`${castObject.cast} ${castObject.etherUrl}`)
-                    ]);
-                    return [castPostResponse, tweetResponse];
+                    const options = {
+                        method: 'POST',
+                        headers: {
+                            accept: 'application/json',
+                            api_key: NEYNAR_API_KEY,
+                            'content-type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            parent_author_fid: 420154,
+                            signer_uuid: SIGNER_UUID,
+                            text: castObject.cast,
+                            embeds: [{url: castObject.etherUrl}]
+                        })
+                        };
+                        const [castPostResponse, tweetResponse] = await Promise.all([
+                            fetch(url, options).then(res => res.json()),
+                            twitterClient.v2.tweet(`${castObject.cast} ${castObject.etherUrl}`)
+                        ]);
+        
+                        return [castPostResponse, tweetResponse];
                 }
             } catch(err){
                 console.log(err)
@@ -75,12 +99,10 @@ async function sendCastsAndTweets(castArray) {
         }
         // Add a delay of 5 seconds between each iteration
         await new Promise(resolve => setTimeout(resolve, 5000));
-    sentArray.push(castObject);
+
     }
-    console.log(sentArray)
     return(sentArray)
 }
-  
-module.exports = { sendCastsAndTweets };
 
 
+module.exports = { sendCastsAndTweets }

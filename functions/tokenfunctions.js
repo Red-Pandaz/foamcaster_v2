@@ -5,6 +5,9 @@ const constants = require('../constants/constants.js');
 
 // There is a bit of redundancy here but transfers to and from the mint/burn address are cross-referenced against mint/burn events
 async function filterMintBurns(eventArray1, eventArray2, resultArray, messageTemplate, txMinimum) {
+    const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
+    const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`)
+    
     if(!eventArray1 || !eventArray2){
         return
     }
@@ -19,7 +22,7 @@ async function filterMintBurns(eventArray1, eventArray2, resultArray, messageTem
         if(txValue >= txMinimum){
             let formattedTxValue = txValue.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",")
             let castMessage = `${formattedTxValue} ${messageTemplate}`
-            let block = await baseProvider.getBlock(filteredEvent.blockNumber)
+            let block = await provider.getBlock(filteredEvent.blockNumber)
             let newObject = {
                 transactionHash: filteredEvent.transactionHash,
                 blockHeight: filteredEvent.blockNumber,
@@ -38,8 +41,8 @@ async function filterMintBurns(eventArray1, eventArray2, resultArray, messageTem
 //Base Mints and Burns
 
 async function filterBaseMintBurns(eventArray1, eventArray2, resultArray, messageTemplate, txMinimum) {
-    const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
-    const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
+    const ALCHEMY_API = await retryApiCall(() => accessSecret('ALCHEMY_API'));
+    const baseProvider = new ethers.providers.JsonRpcProvider(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API}`);
     if(!eventArray1 || !eventArray2){
         return
     }
@@ -54,7 +57,7 @@ async function filterBaseMintBurns(eventArray1, eventArray2, resultArray, messag
         if(txValue >= txMinimum){
             let formattedTxValue = txValue.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",")
             let castMessage = `${formattedTxValue} ${messageTemplate}`
-            let block = await provider.getBlock(filteredEvent.blockNumber)
+            let block = await baseProvider.getBlock(filteredEvent.blockNumber)
             let newObject = {
                 transactionHash: filteredEvent.transactionHash,
                 blockHeight: filteredEvent.blockNumber,

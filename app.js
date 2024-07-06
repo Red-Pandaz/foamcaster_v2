@@ -6,13 +6,14 @@ const { getClaimEvents, getZoneCreations, getZoneDestructions } = require('./fun
 const { retryApiCall, processTransferData, accessSecret } = require('./utils/apiutils.js');
 const { sendCastsAndTweets } = require('./farcaster/farcaster.js');
 const constants = require('./constants/constants.js');
-    async function main(){
-    // exports.main = async (req, res) => {
+    // async function main(){
+    exports.main = async (req, res) => {
         try{
 
             const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
             const ALCHEMY_API = await retryApiCall(() => accessSecret('ALCHEMY_API'));
             const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
+         
             let currentBlock = await retryApiCall(() => provider.getBlockWithTransactions('latest'))
             const baseProvider = new ethers.providers.JsonRpcProvider(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API}`);
             let baseCurrentBlock = await retryApiCall(() => baseProvider.getBlockWithTransactions('latest'))
@@ -25,7 +26,7 @@ const constants = require('./constants/constants.js');
             if(lastBaseBlock){
                 baseFromBlock = lastBaseBlock + 1
             } else{
-                baseFromBlock = baseCurrentBlock.number - 200000
+                baseFromBlock = baseCurrentBlock.number - 1800
             }
             let baseToBlock = baseCurrentBlock.number
   
@@ -56,8 +57,11 @@ const constants = require('./constants/constants.js');
                 updateTimestamp(currentBlock.number, baseCurrentBlock.number, []);
                 return;
             }
-            console.log("START BLOCK: " + fromBlock);
-            console.log("END BLOCK: " + toBlock);
+            console.log("OP START BLOCK: " + fromBlock);
+            console.log("OP END BLOCK: " + toBlock);
+            console.log("BASE START BLOCK: " + baseFromBlock)
+            console.log("BASE TO BLOCK: " + baseToBlock)
+
     
             // await getZoneCreations(fromBlock, toBlock, castsToSend, zoneCollection, zoneArray, newZones);
             // await getZoneDestructions(fromBlock, toBlock, zoneArray, castsToSend, destroyedArray, newZones);
@@ -261,10 +265,9 @@ const constants = require('./constants/constants.js');
 
           
             //Final processing, sent casts out and update databases before returning
-            console.log(castsToSend)
-            // let sentCastArray = await sendCastsAndTweets(castsToSend);
+            let sentCastArray = await sendCastsAndTweets(castsToSend);
             // await updateZonesAndClaims(newZones, destroyedArray, claimArray)
-            // await updateTimestamp(currentBlock.number, baseCurrentBlock.number, sentCastArray);
+            await updateTimestamp(currentBlock.number, baseCurrentBlock.number, sentCastArray);
         }catch(err){
         console.log(err)
         return
@@ -272,5 +275,4 @@ const constants = require('./constants/constants.js');
         console.log("Cloud Function executed");
         return
     }
-
-    main()
+// main()

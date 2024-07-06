@@ -78,7 +78,7 @@ async function updateTimestamp(blockHeight, baseBlockHeight, castArray) {
     let newTimestampObj = {
         timestamp: Date.now(),
         blockstamp: blockHeight,
-        baseBlockStamp: baseBlockHeight,
+        baseBlockstamp: baseBlockHeight,
         casts: castArray
     };
 
