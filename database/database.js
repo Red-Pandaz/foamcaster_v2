@@ -4,8 +4,8 @@ const dotenv = require("dotenv").config();
 const { retryApiCall, getTransferData, processTransferData, accessSecret } = require('../utils/apiutils.js');
 const dbName = 'Foamcaster-V2'
 const timestampCollectionName = 'Snapshots'
-const zoneCollectionName = 'Zones'
-const claimCollectionName ='Presence Claims'
+const zoneCollectionName = 'Base Zones'
+const claimCollectionName ='Base Presence Claims'
 // const DB_URI = await retryApiCall(() => accessSecret('DB_URI'));
 let client
 

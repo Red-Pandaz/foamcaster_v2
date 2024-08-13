@@ -16,13 +16,14 @@ const ZONE_ABI = require('../abi/zone.json')
 
 async function getClaimEvents(fromBlock, toBlock, castArray, claimArray, zoneArray) {
     console.log('getting claim events')
-    const baseProvider = new ethers.providers.JsonRpcProvider("https://devnet-l2.foam.space/api/eth-rpc");
+    // const baseProvider = new ethers.providers.JsonRpcProvider("https://devnet-l2.foam.space/api/eth-rpc");
     // const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
     // const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
     // const ALCHEMY_API = await retryApiCall(() => accessSecret('ALCHEMY_API'));
-    // const baseProvider = new ethers.providers.JsonRpcProvider(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API}`);
-    const PRESENCE_CLAIM_CONTRACT = new ethers.Contract(constants.FOAM_PRESENCE_CLAIM_ADDRESS, PRESENCE_CLAIM_ABI, baseProvider)
+    const baseProvider = new ethers.providers.JsonRpcProvider(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API}`);
+    const PRESENCE_CLAIM_CONTRACT = new ethers.Contract(constants.BASE_FOAM_PRESENCE_CLAIM_ADDRESS, PRESENCE_CLAIM_ABI, baseProvider)
     const PRESENCE_CLAIM_EVENT_FILTER = PRESENCE_CLAIM_CONTRACT.filters.Transfer(constants.FOAM_MINT_BURN_ADDRESS)
+
     const presenceClaimEvents = await retryApiCall(() => PRESENCE_CLAIM_CONTRACT.queryFilter(PRESENCE_CLAIM_EVENT_FILTER, fromBlock, toBlock))
     await Promise.all(presenceClaimEvents.map(async function(event) {
         let castObj = {};
@@ -77,6 +78,7 @@ async function getFpcData(tokenId, castObj, claimObj, toAddress, zoneArray, PRES
     claimObj.latlonLocation.latitude = latlon.latitude
     claimObj.latlonLocation.longitude = latlon.longitude
     claimObj.altitude = parseInt(altitude._hex, 16)
+    console.log(claimObj)
     castObj.cast = `Grade ${algo} FOAM Presence Claim minted in Zone #${zoneId} (${zoneName}) on ${formattedDate}`
     castObj.etherUrl = `https://optimistic.etherscan.io/tx/${castObj.transactionHash}`
     castObj.mapsUrl = `https://www.google.com/maps?q=${latlon.latitude},${latlon.longitude}`
@@ -87,10 +89,10 @@ async function getZoneCreations(fromBlock, toBlock, castArray, zoneCollection, z
     console.log('getting zone creations')
     // const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
     // const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
-    const baseProvider = new ethers.providers.JsonRpcProvider("https://devnet-l2.foam.space/api/eth-rpc");
+    // const baseProvider = new ethers.providers.JsonRpcProvider("https://devnet-l2.foam.space/api/eth-rpc");
     // const ALCHEMY_API = await retryApiCall(() => accessSecret('ALCHEMY_API'));
-    // const baseProvider = new ethers.providers.JsonRpcProvider(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API}`);
-    const ZONE_CONTRACT = new ethers.Contract(constants.ZONE_ADDRESS, ZONE_ABI, baseProvider)
+    const baseProvider = new ethers.providers.JsonRpcProvider(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API}`);
+    const ZONE_CONTRACT = new ethers.Contract(constants.BASE_ZONE_ADDRESS, ZONE_ABI, baseProvider)
     const ZONE_CREATE_FILTER = ZONE_CONTRACT.filters.ZoneCreated()
     let zones = await retryApiCall(() => ZONE_CONTRACT.queryFilter(ZONE_CREATE_FILTER, fromBlock, toBlock))
     zones.forEach(async function(zone){
@@ -104,7 +106,7 @@ async function getZoneCreations(fromBlock, toBlock, castArray, zoneCollection, z
         castObj.blockHeight = zone.blockNumber
         castObj.transactionHash = zone.transactionHash
         castObj.cast = `Zone #${zoneId} (${zoneName}) created, ${zoneNumberOfAnchors} anchors`
-        castObj.etherUrl = `https://optimistic.etherscan.io/tx/${castObj.transactionHash}`
+        castObj.etherUrl = `https://basescan.org/tx/${castObj.transactionHash}`
         newZone._id = zoneId
         newZone.zoneName = zoneName
         newZone.blockHeight = zone.blockNumber
@@ -127,7 +129,7 @@ async function getZoneDestructions(fromBlock, toBlock, zoneArray, castArray, des
     // const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
     // const ALCHEMY_API = await retryApiCall(() => accessSecret('ALCHEMY_API'));
     // const baseProvider = new ethers.providers.JsonRpcProvider(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API}`);
-    const ZONE_CONTRACT = new ethers.Contract(constants.ZONE_ADDRESS, ZONE_ABI, baseProvider)
+    const ZONE_CONTRACT = new ethers.Contract(constants.BASE_ZONE_ADDRESS, ZONE_ABI, baseProvider)
     const ZONE_DESTROY_FILTER = ZONE_CONTRACT.filters.ZoneDestroyed()
     let zoneDestructions = await retryApiCall(() => ZONE_CONTRACT.queryFilter(ZONE_DESTROY_FILTER, fromBlock, toBlock))
     zoneDestructions.forEach(async function(destruction){
@@ -140,7 +142,7 @@ async function getZoneDestructions(fromBlock, toBlock, zoneArray, castArray, des
         castObj.timestamp = block.timestamp
         castObj.transactionHash = destruction.transactionHash
         castObj.cast = `Zone #${zoneId} (${zoneName}) destroyed`
-        castObj.etherUrl = `https://optimistic.etherscan.io/tx/${castObj.transactionHash}`
+        castObj.etherUrl = `https://basescan.org/tx/${castObj.transactionHash}`
         let index = newZones.findIndex(obj => obj._id === zoneId);
         if (index !== -1) {
             newZones[index].active = false;
