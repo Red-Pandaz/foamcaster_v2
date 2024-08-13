@@ -117,6 +117,9 @@ const constants = require('./constants/constants.js');
             const OKX_BUY_FILTER = FOAM_TOKEN_CONTRACT.filters.Transfer([constants.UNI_V3_ADDRESS, constants.VELEDROME_POOL_ADDRESS], constants.OKX_ROUTER_ADDRESSES);
             const OKX_SELL_FILTER = FOAM_TOKEN_CONTRACT.filters.Transfer(constants.OKX_ROUTER_ADDRESSES, [constants.UNI_V3_ADDRESS, constants.VELEDROME_EXECUTIVE_ADDRESS]);
 
+            const ZERO_X_BUY_FILTER = FOAM_TOKEN_CONTRACT.filters.Transfer([constants.UNI_V3_ADDRESS, constants.VELEDROME_POOL_ADDRESS], constants.ZERO_X_ROUTER_ADDRESS);
+            const ZERO_X_SELL_FILTER = FOAM_TOKEN_CONTRACT.filters.Transfer(constants.ZERO_X_ROUTER_ADDRESS, [constants.UNI_V3_ADDRESS, constants.VELEDROME_EXECUTIVE_ADDRESS]);
+
             const MINT_EVENT_FILTER = FOAM_TOKEN_CONTRACT.filters.Mint();
             const BURN_EVENT_FILTER = FOAM_TOKEN_CONTRACT.filters.Burn();
             const MINT_TRANSFER_FILTER = FOAM_TOKEN_CONTRACT.filters.Transfer(constants.FOAM_MINT_BURN_ADDRESS, null);
@@ -154,6 +157,8 @@ const constants = require('./constants/constants.js');
                 { name: "paraswapSells", filter: PARASWAP_SELL_FILTER },
                 { name: "okxBuys", filter: OKX_BUY_FILTER },
                 { name: "okxSells", filter: OKX_SELL_FILTER },
+                { name: "zeroXBuys", filter: ZERO_X_BUY_FILTER },
+                { name: "zeroXSells", filter: ZERO_X_SELL_FILTER },
                 { name: "mintEvents", filter: MINT_EVENT_FILTER },
                 { name: "mintTransfers", filter: MINT_TRANSFER_FILTER },
                 { name: "burnEvents", filter: BURN_EVENT_FILTER },
@@ -188,6 +193,8 @@ const constants = require('./constants/constants.js');
                     paraswapSells,
                     okxBuys,
                     okxSells,
+                    zeroXBuys,
+                    zeroXSells,
                     uniOutgoingXfers,
                     uniIncomingXfers,
                     veledromeOutgoingXfers,
@@ -221,6 +228,8 @@ const constants = require('./constants/constants.js');
             { name: "paraswapSells", func: filterAggregatorEvents, args: [paraswapSells, castsToSend, "$FOAM sold via Paraswap (Optimism):", txMinimum] },
             { name: "okxBuys", func: filterAggregatorEvents, args: [okxBuys, castsToSend, "$FOAM bought via OKX (Optimism):", txMinimum] },
             { name: "okxSells", func: filterAggregatorEvents, args: [okxSells, castsToSend, "$FOAM sold via OKX (Optimism):", txMinimum] },
+            { name: "zeroXBuys", func: filterAggregatorEvents, args: [zeroXBuys, castsToSend, "$FOAM bought via 0x (Optimism):", txMinimum] },
+            { name: "zeroXSells", func: filterAggregatorEvents, args: [zeroXSells, castsToSend, "$FOAM sold via 0x (Optimism):", txMinimum] },
             { name: "uniOutgoingXfers", func: filterExchangeTransfers, args: [uniOutgoingXfers, constants.UNI_V3_ADDRESS, UNI_V3_ABI, castsToSend, "$FOAM bought on UniV3 (Optimism):", "Swap", txMinimum] },
             { name: "uniIncomingXfers", func: filterExchangeTransfers, args: [uniIncomingXfers, constants.UNI_V3_ADDRESS, UNI_V3_ABI, castsToSend, "$FOAM sold on UniV3 (Optimism):", "Swap", txMinimum] },
             { name: "veledromeOutgoingXfers", func: filterExchangeTransfers, args: [veledromeOutgoingXfers, constants.VELEDROME_POOL_ADDRESS, VELEDROME_POOL_ABI, castsToSend, "$FOAM bought on Veledrome (Optimism):", "Swap", txMinimum] },
