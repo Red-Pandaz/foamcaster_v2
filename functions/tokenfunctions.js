@@ -318,6 +318,10 @@ async function filterBaseExchangeEvents(eventArray, contractAddress, contractABI
         newContractFilter = newContract.filters.IncreaseLiquidity()
     }else if(contractMethod === "DecreaseLiquidity"){
         newContractFilter = newContract.filters.DecreaseLiquidity()
+    }else if(contractMethod === "Mint"){
+        newContractFilter = newContract.filters.Mint()
+    }else if(contractMethod === "Burn"){
+        newContractFilter = newContract.filters.Burn()
     }else{
         return
     }

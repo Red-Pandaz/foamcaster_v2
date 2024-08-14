@@ -129,12 +129,14 @@ const constants = require('./constants/constants.js');
 
 
             //Base Token Filters
-            const BASE_WETH_UNI_BUY_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(constants.BASE_UNIV3_WETH_ADDRESS , null );
-            const BASE_WETH_UNI_SELL_FILTER= BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(null, constants.BASE_UNIV3_WETH_ADDRESS );
+            const BASE_WETH_UNI_BUY_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(constants.BASE_UNIV3_WETH_ADDRESS , null);
+            const BASE_WETH_UNI_SELL_FILTER= BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(null, constants.BASE_UNIV3_WETH_ADDRESS);
     
             const BASE_USDC_UNI_BUY_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(constants.BASE_UNIV3_USDC_ADDRESS , null );
-            const BASE_USDC_UNI_SELL_FILTER= BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(null, constants.BASE_UNIV3_USDC_ADDRESS );
+            const BASE_USDC_UNI_SELL_FILTER= BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(null, constants.BASE_UNIV3_USDC_ADDRESS);
             
+            const BASE_AERODROME_BUY_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(constants.BASE_AERODROME_POOL_ADDRESS , null);
+            const BASE_AERODROME_SELL_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(null, constants.BASE_AERODROME_POOL_ADDRESS);
     
             const BASE_FOAM_TRANSFER_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer();
             const BASE_MINT_EVENT_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Mint();
@@ -173,6 +175,11 @@ const constants = require('./constants/constants.js');
                 { name: "baseUniWETHIncomingXfers", filter: BASE_WETH_UNI_SELL_FILTER },
                 { name: "baseUniUSDCOutgoingXfers", filter: BASE_USDC_UNI_BUY_FILTER },
                 { name: "baseUniUSDCIncomingXfers", filter: BASE_USDC_UNI_SELL_FILTER },
+
+                { name: "baseAerodromeOutgoingXfers", filter: BASE_AERODROME_BUY_FILTER },
+                { name: "baseAerodromeIncomingXfers", filter: BASE_AERODROME_SELL_FILTER },
+
+
                 { name: "baseMintEvents", filter: BASE_MINT_EVENT_FILTER },
                 { name: "baseMintTransfers", filter: BASE_MINT_TRANSFER_FILTER },
                 { name: "baseBurnEvents", filter: BASE_BURN_EVENT_FILTER },
@@ -216,6 +223,8 @@ const constants = require('./constants/constants.js');
                     baseUniWETHIncomingXfers,
                     baseUniUSDCOutgoingXfers,
                     baseUniUSDCIncomingXfers,
+                    baseAerodromeOutgoingXfers,
+                    baseAerodromeIncomingXfers
                 } = baseFilterResults
             
          //Aggregator events MUST be caught before exchange events get processed
@@ -236,8 +245,8 @@ const constants = require('./constants/constants.js');
             { name: "veledromeIncomingXfers", func: filterExchangeTransfers, args: [veledromeIncomingXfers, constants.VELEDROME_POOL_ADDRESS, VELEDROME_POOL_ABI, castsToSend, "$FOAM sold on Veledrome (Optimism):", "Swap", txMinimum] },
             { name: "uniOutgoingXfers2", func: filterExchangeTransfers, args: [uniOutgoingXfers, constants.UNI_V3_LIQUIDITY_ADDRESS, UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM removed from liquidity on UniV3 (Optimism):", "DecreaseLiquidity", txMinimum] },
             { name: "uniIncomingXfers2", func: filterExchangeTransfers, args: [uniIncomingXfers, constants.UNI_V3_LIQUIDITY_ADDRESS, UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM added to liquidity on UniV3 (Optimism):", "IncreaseLiquidity", txMinimum] },
-            { name: "veledromeOutgoingXfers2", func: filterExchangeTransfers, args: [veledromeOutgoingXfers, constants.VELEDROME_LIQUIDITY_TOKEN, VELEDROME_LIQUIDITY_ABI, castsToSend, "$FOAM removed from liquidity on Veledrome (Optimism):", "Burn", txMinimum] },
-            { name: "veledromeIncomingXfers2", func: filterExchangeTransfers, args: [veledromeIncomingXfers, constants.VELEDROME_LIQUIDITY_TOKEN, VELEDROME_LIQUIDITY_ABI, castsToSend, "$FOAM added to liquidity on Veledrome (Optimism):", "Mint", txMinimum] }
+            { name: "veledromeOutgoingXfers2", func: filterExchangeTransfers, args: [veledromeOutgoingXfers, constants.VELEDROME_POOL_ADDRESS, VELEDROME_POOL_ABI, castsToSend, "$FOAM removed from liquidity on Veledrome (Optimism):", "Burn", txMinimum] },
+            { name: "veledromeIncomingXfers2", func: filterExchangeTransfers, args: [veledromeIncomingXfers, constants.VELEDROME_POOL_ADDRESS, VELEDROME_POOL_ABI, castsToSend, "$FOAM added to liquidity on Veledrome (Optimism):", "Mint", txMinimum] }
         ];
             // Processing all events that requiring additional chain querying
             const filterResults2 = await processTransferData(unprocessedCalls);
@@ -249,10 +258,15 @@ const constants = require('./constants/constants.js');
             { name: "uniWETHOutgoingXfers2", func: filterBaseExchangeEvents, args: [baseUniWETHOutgoingXfers, constants.BASE_UNIV3_LIQUIDITY_ADDRESS, BASE_UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM removed from $WETH liquidity pool on UniV3 (Base):", "DecreaseLiquidity", txMinimum] },
             { name: "uniWETHIncomingXfers2", func: filterBaseExchangeEvents, args: [baseUniWETHIncomingXfers, constants.BASE_UNIV3_LIQUIDITY_ADDRESS, BASE_UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM added to $WETH liquidity pool on UniV3 (Base):", "IncreaseLiquidity", txMinimum] },
             
-            { name: "uniUSDCOutgoingXfers", func: filterBaseExchangeEvents, args: [baseUniUSDCOutgoingXfers, constants. BASE_UNIV3_USDC_ADDRESS, BASE_UNI_V3_ABI, castsToSend, "$FOAM bought on UniV3 (Base):", "Swap", txMinimum] },
-            { name: "uniUSDCIncomingXfers", func: filterBaseExchangeEvents, args: [baseUniUSDCIncomingXfers, constants. BASE_UNIV3_USDC_ADDRESS, BASE_UNI_V3_ABI, castsToSend, "$FOAM sold on UniV3 (Base):", "Swap", txMinimum] },
+            { name: "uniUSDCOutgoingXfers", func: filterBaseExchangeEvents, args: [baseUniUSDCOutgoingXfers, constants.BASE_UNIV3_USDC_ADDRESS, BASE_UNI_V3_ABI, castsToSend, "$FOAM bought on UniV3 (Base):", "Swap", txMinimum] },
+            { name: "uniUSDCIncomingXfers", func: filterBaseExchangeEvents, args: [baseUniUSDCIncomingXfers, constants.BASE_UNIV3_USDC_ADDRESS, BASE_UNI_V3_ABI, castsToSend, "$FOAM sold on UniV3 (Base):", "Swap", txMinimum] },
             { name: "uniUSDCOutgoingXfers2", func: filterBaseExchangeEvents, args: [baseUniUSDCOutgoingXfers, constants.BASE_UNIV3_LIQUIDITY_ADDRESS, BASE_UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM removed from $USDC liquidity pool on UniV3 (Base):", "DecreaseLiquidity", txMinimum] },
             { name: "uniUSDCIncomingXfers2", func: filterBaseExchangeEvents, args: [baseUniUSDCIncomingXfers, constants.BASE_UNIV3_LIQUIDITY_ADDRESS, BASE_UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM added to $USDC liquidity pool on UniV3 (Base):", "IncreaseLiquidity", txMinimum] },
+
+            { name: "aerodromeOutgoingXfers", func: filterBaseExchangeEvents, args: [baseAerodromeOutgoingXfers, constants.BASE_UNIV3_USDC_ADDRESS, BASE_UNI_V3_ABI, castsToSend, "$FOAM bought on Aerodrome (Base):", "Swap", txMinimum] },
+            { name: "aerodromeIncomingXfers", func: filterBaseExchangeEvents, args: [baseAerodromeIncomingXfers, constants.BASE_UNIV3_USDC_ADDRESS, BASE_UNI_V3_ABI, castsToSend, "$FOAM sold on Aerodrome (Base):", "Swap", txMinimum] },
+            { name: "aerodromeOutgoingXfers2", func: filterBaseExchangeEvents, args: [baseAerodromeOutgoingXfers, constants.BASE_AERODROME_POOL_ADDRESS, VELEDROME_POOL_ABI, castsToSend, "$FOAM removed from liquidity on Aerodrome (Base):", "Burn", txMinimum] },
+            { name: "aerodromeIncomingXfers2", func: filterBaseExchangeEvents, args: [baseAerodromeIncomingXfers, constants.BASE_AERODROME_POOL_ADDRESS, VELEDROME_POOL_ABI, castsToSend, "$FOAM added to liquidity on Aerodrome (Base):", "Mint", txMinimum] },
         ];
 
               // Processing all events that requiring additional chain querying
