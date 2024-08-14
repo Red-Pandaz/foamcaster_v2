@@ -63,9 +63,11 @@ const constants = require('./constants/constants.js');
             console.log("BASE TO BLOCK: " + baseToBlock)
 
     
-            // await getZoneCreations(fromBlock, toBlock, castsToSend, zoneCollection, zoneArray, newZones);
-            // await getZoneDestructions(fromBlock, toBlock, zoneArray, castsToSend, destroyedArray, newZones);
-            // await getClaimEvents(fromBlock, toBlock, castsToSend, claimArray, zoneArray);
+            await getZoneCreations(baseFromBlock, baseToBlock, castsToSend, zoneCollection, zoneArray, newZones);
+            await getZoneDestructions(baseFromBlock, baseToBlock, zoneArray, castsToSend, destroyedArray, newZones);
+            await getClaimEvents(baseFromBlock, baseToBlock, castsToSend, claimArray, zoneArray);
+            await updateZonesAndClaims(newZones, destroyedArray, claimArray)
+
 
 
             // Optimism Token ABIs
@@ -307,11 +309,10 @@ const constants = require('./constants/constants.js');
             await filterBaseMintBurns(baseBurnTransfers, baseBurnEvents, castsToSend, "$FOAM bridged to L1 from Base:", txMinimum);
 
             await handleUnfilteredBaseTransfers(allBaseTransfers, castsToSend, "$FOAM transferred on Base:", txMinimum);
-
+        
           
             //Final processing, sent casts out and update databases before returning
             let sentCastArray = await sendCastsAndTweets(castsToSend);
-            // await updateZonesAndClaims(newZones, destroyedArray, claimArray)
             await updateTimestamp(currentBlock.number, baseCurrentBlock.number, sentCastArray);
         }catch(err){
         console.log(err)
