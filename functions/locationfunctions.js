@@ -124,11 +124,11 @@ async function getZoneCreations(fromBlock, toBlock, castArray, zoneCollection, z
 
 async function getZoneDestructions(fromBlock, toBlock, zoneArray, castArray, destroyedArray, newZones){
     console.log('getting zone destructions')
-    const baseProvider = new ethers.providers.JsonRpcProvider("https://devnet-l2.foam.space/api/eth-rpc");
+    // const baseProvider = new ethers.providers.JsonRpcProvider("https://devnet-l2.foam.space/api/eth-rpc");
     // const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
     // const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
     // const ALCHEMY_API = await retryApiCall(() => accessSecret('ALCHEMY_API'));
-    // const baseProvider = new ethers.providers.JsonRpcProvider(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API}`);
+    const baseProvider = new ethers.providers.JsonRpcProvider(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API}`);
     const ZONE_CONTRACT = new ethers.Contract(constants.BASE_ZONE_ADDRESS, ZONE_ABI, baseProvider)
     const ZONE_DESTROY_FILTER = ZONE_CONTRACT.filters.ZoneDestroyed()
     let zoneDestructions = await retryApiCall(() => ZONE_CONTRACT.queryFilter(ZONE_DESTROY_FILTER, fromBlock, toBlock))
