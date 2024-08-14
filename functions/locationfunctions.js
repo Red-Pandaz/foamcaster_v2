@@ -19,7 +19,7 @@ async function getClaimEvents(fromBlock, toBlock, castArray, claimArray, zoneArr
     // const baseProvider = new ethers.providers.JsonRpcProvider("https://devnet-l2.foam.space/api/eth-rpc");
     // const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
     // const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
-    // const ALCHEMY_API = await retryApiCall(() => accessSecret('ALCHEMY_API'));
+    const ALCHEMY_API = await retryApiCall(() => accessSecret('ALCHEMY_API'));
     const baseProvider = new ethers.providers.JsonRpcProvider(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API}`);
     const PRESENCE_CLAIM_CONTRACT = new ethers.Contract(constants.BASE_FOAM_PRESENCE_CLAIM_ADDRESS, PRESENCE_CLAIM_ABI, baseProvider)
     const PRESENCE_CLAIM_EVENT_FILTER = PRESENCE_CLAIM_CONTRACT.filters.Transfer(constants.FOAM_MINT_BURN_ADDRESS)
@@ -64,8 +64,8 @@ async function getFpcData(tokenId, castObj, claimObj, toAddress, zoneArray, PRES
     const month = originalDate.toLocaleString('en-US', { month: 'short' });
     const day = originalDate.getDate();
     const year = originalDate.getFullYear();
-    const hours = originalDate.getUTCHours();
-    const minutes = originalDate.getUTCMinutes();
+    const hours = String(originalDate.getUTCHours()).padStart(2, '0');
+    const minutes = String(originalDate.getUTCMinutes()).padStart(2, '0');
     const formattedDate = `${month} ${day} ${year} ${hours}:${minutes} UTC`;
     claimObj.timestamp = Number(timestamp)
     claimObj.zone = zoneId
@@ -90,12 +90,12 @@ async function getZoneCreations(fromBlock, toBlock, castArray, zoneCollection, z
     // const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
     // const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
     // const baseProvider = new ethers.providers.JsonRpcProvider("https://devnet-l2.foam.space/api/eth-rpc");
-    // const ALCHEMY_API = await retryApiCall(() => accessSecret('ALCHEMY_API'));
+    const ALCHEMY_API = await retryApiCall(() => accessSecret('ALCHEMY_API'));
     const baseProvider = new ethers.providers.JsonRpcProvider(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API}`);
     const ZONE_CONTRACT = new ethers.Contract(constants.BASE_ZONE_ADDRESS, ZONE_ABI, baseProvider)
     const ZONE_CREATE_FILTER = ZONE_CONTRACT.filters.ZoneCreated()
     let zones = await retryApiCall(() => ZONE_CONTRACT.queryFilter(ZONE_CREATE_FILTER, fromBlock, toBlock))
-    zones.forEach(async function(zone){
+    for (const zone of zones) {
         let zoneId = (Number(zone.args.zoneId, 16))
         let zoneName = zone.args.zoneName
         let zoneNumberOfAnchors = (zone.args.zoneAnchors.length)
@@ -114,12 +114,12 @@ async function getZoneCreations(fromBlock, toBlock, castArray, zoneCollection, z
         newZone.anchors = zone.args.zoneAnchors
         newZone.custodian = zone.args.custodian
         newZone.active = true
-        newZones.push(newZone)
+        newZones.push(newZone)   
         castArray.push(castObj)
-    })
+    }
     zoneArray.push(...zoneCollection)
     zoneArray.push(...newZones)
-    return newZones, zoneArray, castArray
+    return { newZones, zoneArray, castArray }
 }
 
 async function getZoneDestructions(fromBlock, toBlock, zoneArray, castArray, destroyedArray, newZones){
@@ -127,12 +127,12 @@ async function getZoneDestructions(fromBlock, toBlock, zoneArray, castArray, des
     // const baseProvider = new ethers.providers.JsonRpcProvider("https://devnet-l2.foam.space/api/eth-rpc");
     // const INFURA_API = await retryApiCall(() => accessSecret('INFURA_API'));
     // const provider = new ethers.providers.JsonRpcProvider(`https://optimism-mainnet.infura.io/v3/${INFURA_API}`);
-    // const ALCHEMY_API = await retryApiCall(() => accessSecret('ALCHEMY_API'));
+    const ALCHEMY_API = await retryApiCall(() => accessSecret('ALCHEMY_API'));
     const baseProvider = new ethers.providers.JsonRpcProvider(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API}`);
     const ZONE_CONTRACT = new ethers.Contract(constants.BASE_ZONE_ADDRESS, ZONE_ABI, baseProvider)
     const ZONE_DESTROY_FILTER = ZONE_CONTRACT.filters.ZoneDestroyed()
     let zoneDestructions = await retryApiCall(() => ZONE_CONTRACT.queryFilter(ZONE_DESTROY_FILTER, fromBlock, toBlock))
-    zoneDestructions.forEach(async function(destruction){
+    for (const destruction of zoneDestructions){
         let castObj = {}
         let zoneId = Number(destruction.args.zoneId,16)
         let zone = zoneArray.find(obj => obj._id === zoneId);
@@ -149,9 +149,9 @@ async function getZoneDestructions(fromBlock, toBlock, zoneArray, castArray, des
         }
         destroyedArray.push(zoneId)
         castArray.push(castObj)
-    })
+    }
 
-return destroyedArray, castArray, newZones
+return { destroyedArray, castArray, newZones }
 }
 
     

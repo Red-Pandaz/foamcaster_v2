@@ -311,7 +311,7 @@ const constants = require('./constants/constants.js');
             await handleUnfilteredBaseTransfers(allBaseTransfers, castsToSend, "$FOAM transferred on Base:", txMinimum);
         
           
-            //Final processing, sent casts out and update databases before returning
+            //Final processing, sent casts out and update database before returning
             let sentCastArray = await sendCastsAndTweets(castsToSend);
             await updateTimestamp(currentBlock.number, baseCurrentBlock.number, sentCastArray);
         }catch(err){
