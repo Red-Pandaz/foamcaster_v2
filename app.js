@@ -1,6 +1,6 @@
 const ethers = require('ethers');
 const dotenv = require("dotenv").config();
-const {filterMintBurns, filterAggregatorEvents, filterExchangeTransfers, handleUnfilteredTransfers, handleUnfilteredBaseTransfers, getTransferData, getBaseTransferData, filterBaseExchangeEvents, filterBaseSwapEvents, filterBaseMintBurns} = require('./functions/tokenfunctions.js');
+const {filterMintBurns, filterAggregatorEvents, filterExchangeTransfers, handleUnfilteredTransfers, handleUnfilteredBaseTransfers, getTransferData, getBaseTransferData, filterBaseExchangeEvents, filterBaseSwapEvents, filterBaseMintBurns, filterBaseAggregatorEvents} = require('./functions/tokenfunctions.js');
 const { updateTimestamp, getLastTimestamp, updateZonesAndClaims, getZoneCollection } = require('./database/database.js');
 const { getClaimEvents, getZoneCreations, getZoneDestructions } = require('./functions/locationfunctions.js')
 const { retryApiCall, processTransferData, accessSecret } = require('./utils/apiutils.js');
@@ -137,6 +137,12 @@ const constants = require('./constants/constants.js');
             
             const BASE_AERODROME_BUY_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(constants.BASE_AERODROME_POOL_ADDRESS , null);
             const BASE_AERODROME_SELL_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(null, constants.BASE_AERODROME_POOL_ADDRESS);
+
+            const BASE_ONE_INCH_BUY_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer([constants.BASE_UNIV3_WETH_ADDRESS, constants.BASE_UNIV3_USDC_ADDRESS, constants.BASE_AERODROME_POOL_ADDRESS], constants.BASE_ONE_INCH_ROUTER_ADDRESS);
+            const BASE_ONE_INCH_SELL_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(constants.BASE_ONE_INCH_ROUTER_ADDRESS, [constants.BASE_UNIV3_WETH_ADDRESS, constants.BASE_UNIV3_USDC_ADDRESS, constants.BASE_AERODROME_POOL_ADDRESS]);
+
+            const BASE_PARASWAP_BUY_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer([constants.BASE_UNIV3_WETH_ADDRESS, constants.BASE_UNIV3_USDC_ADDRESS, constants.BASE_AERODROME_POOL_ADDRESS], constants.BASE_PARASWAP_ROUTER_ADDRESS);
+            const BASE_PARASWAP_SELL_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(constants.BASE_PARASWAP_ROUTER_ADDRESS, [constants.BASE_UNIV3_WETH_ADDRESS, constants.BASE_UNIV3_USDC_ADDRESS, constants.BASE_AERODROME_POOL_ADDRESS]);
     
             const BASE_FOAM_TRANSFER_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer();
             const BASE_MINT_EVENT_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Mint();
@@ -165,7 +171,8 @@ const constants = require('./constants/constants.js');
                 { name: "mintTransfers", filter: MINT_TRANSFER_FILTER },
                 { name: "burnEvents", filter: BURN_EVENT_FILTER },
                 { name: "burnTransfers", filter: BURN_TRANSFER_FILTER },
-                { name: "allTransfers", filter: FOAM_TRANSFER_FILTER }
+                { name: "allTransfers", filter: FOAM_TRANSFER_FILTER },
+                
             ];
 
             //Base filter constants
@@ -178,6 +185,11 @@ const constants = require('./constants/constants.js');
 
                 { name: "baseAerodromeOutgoingXfers", filter: BASE_AERODROME_BUY_FILTER },
                 { name: "baseAerodromeIncomingXfers", filter: BASE_AERODROME_SELL_FILTER },
+
+                { name: "baseOneInchBuys", filter: BASE_ONE_INCH_BUY_FILTER },
+                { name: "baseOneInchSells", filter: BASE_ONE_INCH_SELL_FILTER },
+                { name: "baseParaswapBuys", filter: BASE_PARASWAP_BUY_FILTER },
+                { name: "baseParaswapSells", filter: BASE_PARASWAP_SELL_FILTER },
 
 
                 { name: "baseMintEvents", filter: BASE_MINT_EVENT_FILTER },
@@ -224,7 +236,11 @@ const constants = require('./constants/constants.js');
                     baseUniUSDCOutgoingXfers,
                     baseUniUSDCIncomingXfers,
                     baseAerodromeOutgoingXfers,
-                    baseAerodromeIncomingXfers
+                    baseAerodromeIncomingXfers,
+                    baseOneInchBuys,
+                    baseOneInchSells,
+                    baseParaswapBuys,
+                    baseParaswapSells,
                 } = baseFilterResults
             
          //Aggregator events MUST be caught before exchange events get processed
@@ -253,6 +269,12 @@ const constants = require('./constants/constants.js');
 
                      //Aggregator events MUST be caught before exchange events get processed
          const unprocessedBaseCalls = [
+            { name: "baseOneInchBuys", func: filterBaseAggregatorEvents, args: [baseOneInchBuys, castsToSend, "$FOAM bought via 1inch (Base):", txMinimum] },
+            { name: "baseOneInchSells", func: filterBaseAggregatorEvents, args: [baseOneInchSells, castsToSend, "$FOAM sold via 1inch (Base):", txMinimum] },
+            { name: "baseParaswapBuys", func: filterBaseAggregatorEvents, args: [baseParaswapBuys, castsToSend, "$FOAM bought via Paraswap (Base):", txMinimum] },
+            { name: "baseParaswapSells", func: filterBaseAggregatorEvents, args: [baseParaswapSells, castsToSend, "$FOAM sold via Paraswap (Base):", txMinimum] },
+
+            
             { name: "uniWETHOutgoingXfers", func: filterBaseExchangeEvents, args: [baseUniWETHOutgoingXfers, constants.BASE_UNIV3_WETH_ADDRESS, BASE_UNI_V3_ABI, castsToSend, "$FOAM bought on UniV3 (Base):", "Swap", txMinimum] }, 
             { name: "uniWETHIncomingXfers", func: filterBaseExchangeEvents, args: [baseUniWETHIncomingXfers, constants.BASE_UNIV3_WETH_ADDRESS, BASE_UNI_V3_ABI, castsToSend, "$FOAM sold on UniV3 (Base):", "Swap", txMinimum] },
             { name: "uniWETHOutgoingXfers2", func: filterBaseExchangeEvents, args: [baseUniWETHOutgoingXfers, constants.BASE_UNIV3_LIQUIDITY_ADDRESS, BASE_UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM removed from $WETH liquidity pool on UniV3 (Base):", "DecreaseLiquidity", txMinimum] },
@@ -299,3 +321,132 @@ const constants = require('./constants/constants.js');
         return
     }
 // main()
+
+// async function testBaseAggregator(){
+//     const ALCHEMY_API = await retryApiCall(() => accessSecret('ALCHEMY_API'));
+//     const baseProvider = new ethers.providers.JsonRpcProvider(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API}`);
+//     let baseCurrentBlock = await retryApiCall(() => baseProvider.getBlockWithTransactions('latest'))
+//     let baseFromBlock = baseCurrentBlock.number - 200000
+//     let baseToBlock = baseCurrentBlock.number
+
+//     let cronTime = 1800000;
+//     let txMinimum = 1000;
+//     let castsToSend = [];
+
+
+//     // Optimism Token ABIs
+
+//     const FOAM_TOKEN_ABI = JSON.parse(require('./abi/foamtoken.json').result);
+//     const UNI_V3_ABI = JSON.parse(require('./abi/univ3pool.json').result);
+//     const UNI_V3_LIQUIDITY_ABI = JSON.parse(require('./abi/univ3liquidity.json').result);
+//     const VELEDROME_POOL_ABI = JSON.parse(require('./abi/veledromepoolabi.json').result);
+//     const VELEDROME_LIQUIDITY_ABI = JSON.parse(require('./abi/veledromeliquidityabi.json').result);
+
+//     // Base Token ABIs
+//     const BASE_FOAM_TOKEN_ABI = JSON.parse(require('./abi/basefoamtoken.json').result);
+//     const BASE_UNI_V3_ABI = JSON.parse(require('./abi/baseuniv3pool.json').result);
+//     const BASE_UNI_V3_LIQUIDITY_ABI = JSON.parse(require('./abi/baseuniv3liquidity.json').result);
+
+//      // Base Token Contracts/Methods
+//     const BASE_FOAM_TOKEN_CONTRACT = new ethers.Contract(constants.BASE_FOAM_ADDRESS, BASE_FOAM_TOKEN_ABI, baseProvider);
+//     //Base Token Filters
+//     const BASE_WETH_UNI_BUY_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(constants.BASE_UNIV3_WETH_ADDRESS , null);
+//     const BASE_WETH_UNI_SELL_FILTER= BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(null, constants.BASE_UNIV3_WETH_ADDRESS);
+         
+//     const BASE_USDC_UNI_BUY_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(constants.BASE_UNIV3_USDC_ADDRESS , null );
+//     const BASE_USDC_UNI_SELL_FILTER= BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(null, constants.BASE_UNIV3_USDC_ADDRESS);
+                 
+//     const BASE_AERODROME_BUY_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(constants.BASE_AERODROME_POOL_ADDRESS , null);
+//     const BASE_AERODROME_SELL_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(null, constants.BASE_AERODROME_POOL_ADDRESS);
+     
+//     const BASE_ONE_INCH_BUY_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer([constants.BASE_UNIV3_WETH_ADDRESS, constants.BASE_UNIV3_USDC_ADDRESS, constants.BASE_AERODROME_POOL_ADDRESS], constants.BASE_ONE_INCH_ROUTER_ADDRESS);
+//     const BASE_ONE_INCH_SELL_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(constants.BASE_ONE_INCH_ROUTER_ADDRESS, [constants.BASE_UNIV3_WETH_ADDRESS, constants.BASE_UNIV3_USDC_ADDRESS, constants.BASE_AERODROME_POOL_ADDRESS]);
+     
+//     const BASE_PARASWAP_BUY_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer([constants.BASE_UNIV3_WETH_ADDRESS, constants.BASE_UNIV3_USDC_ADDRESS, constants.BASE_AERODROME_POOL_ADDRESS], constants.BASE_PARASWAP_ROUTER_ADDRESS);
+//     const BASE_PARASWAP_SELL_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(constants.BASE_PARASWAP_ROUTER_ADDRESS, [constants.BASE_UNIV3_WETH_ADDRESS, constants.BASE_UNIV3_USDC_ADDRESS, constants.BASE_AERODROME_POOL_ADDRESS]);
+         
+//     const BASE_FOAM_TRANSFER_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer();
+//     const BASE_MINT_EVENT_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Mint();
+//     const BASE_BURN_EVENT_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Burn();
+//     const BASE_MINT_TRANSFER_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(constants.FOAM_MINT_BURN_ADDRESS, null);
+//     const BASE_BURN_TRANSFER_FILTER = BASE_FOAM_TOKEN_CONTRACT.filters.Transfer(null, constants.FOAM_MINT_BURN_ADDRESS);
+
+//     //Base filter constants
+//     const baseFilterConstants = [
+            
+//         { name: "baseUniWETHOutgoingXfers", filter: BASE_WETH_UNI_BUY_FILTER },
+//         { name: "baseUniWETHIncomingXfers", filter: BASE_WETH_UNI_SELL_FILTER },
+//         { name: "baseUniUSDCOutgoingXfers", filter: BASE_USDC_UNI_BUY_FILTER },
+//         { name: "baseUniUSDCIncomingXfers", filter: BASE_USDC_UNI_SELL_FILTER },
+    
+//         { name: "baseAerodromeOutgoingXfers", filter: BASE_AERODROME_BUY_FILTER },
+//         { name: "baseAerodromeIncomingXfers", filter: BASE_AERODROME_SELL_FILTER },
+    
+//         { name: "baseOneInchBuys", filter: BASE_ONE_INCH_BUY_FILTER },
+//         { name: "baseOneInchSells", filter: BASE_ONE_INCH_SELL_FILTER },
+//         { name: "baseParaswapBuys", filter: BASE_PARASWAP_BUY_FILTER },
+//         { name: "baseParaswapSells", filter: BASE_PARASWAP_SELL_FILTER },
+    
+    
+//         { name: "baseMintEvents", filter: BASE_MINT_EVENT_FILTER },
+//         { name: "baseMintTransfers", filter: BASE_MINT_TRANSFER_FILTER },
+//         { name: "baseBurnEvents", filter: BASE_BURN_EVENT_FILTER },
+//         { name: "baseBurnTransfers", filter: BASE_BURN_TRANSFER_FILTER },
+//         { name: "allBaseTransfers", filter: BASE_FOAM_TRANSFER_FILTER }
+//     ]
+
+//     const baseFilterResults = await getBaseTransferData(baseFilterConstants, baseFromBlock, baseToBlock);
+//     const {
+//         baseMintEvents,
+//         baseMintTransfers,
+//         baseBurnEvents,
+//         baseBurnTransfers,
+//         allBaseTransfers,
+//         baseUniWETHOutgoingXfers,
+//         baseUniWETHIncomingXfers,
+//         baseUniUSDCOutgoingXfers,
+//         baseUniUSDCIncomingXfers,
+//         baseAerodromeOutgoingXfers,
+//         baseAerodromeIncomingXfers,
+//         baseOneInchBuys,
+//         baseOneInchSells,
+//         baseParaswapBuys,
+//         baseParaswapSells,
+//     } = baseFilterResults
+
+//     //Aggregator events MUST be caught before exchange events get processed
+//     const unprocessedBaseCalls = [
+//         { name: "baseOneInchBuys", func: filterBaseAggregatorEvents, args: [baseOneInchBuys, castsToSend, "$FOAM bought via 1inch (Base):", txMinimum] },
+//         { name: "baseOneInchSells", func: filterBaseAggregatorEvents, args: [baseOneInchSells, castsToSend, "$FOAM sold via 1inch (Base):", txMinimum] },
+//         { name: "baseParaswapBuys", func: filterBaseAggregatorEvents, args: [baseParaswapBuys, castsToSend, "$FOAM bought via Paraswap (Base):", txMinimum] },
+//         { name: "baseParaswapSells", func: filterBaseAggregatorEvents, args: [baseParaswapSells, castsToSend, "$FOAM sold via Paraswap (Base):", txMinimum] },
+                    
+                                
+//         // { name: "uniWETHOutgoingXfers", func: filterBaseExchangeEvents, args: [baseUniWETHOutgoingXfers, constants.BASE_UNIV3_WETH_ADDRESS, BASE_UNI_V3_ABI, castsToSend, "$FOAM bought on UniV3 (Base):", "Swap", txMinimum] }, 
+//         // { name: "uniWETHIncomingXfers", func: filterBaseExchangeEvents, args: [baseUniWETHIncomingXfers, constants.BASE_UNIV3_WETH_ADDRESS, BASE_UNI_V3_ABI, castsToSend, "$FOAM sold on UniV3 (Base):", "Swap", txMinimum] },
+//         // { name: "uniWETHOutgoingXfers2", func: filterBaseExchangeEvents, args: [baseUniWETHOutgoingXfers, constants.BASE_UNIV3_LIQUIDITY_ADDRESS, BASE_UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM removed from $WETH liquidity pool on UniV3 (Base):", "DecreaseLiquidity", txMinimum] },
+//         // { name: "uniWETHIncomingXfers2", func: filterBaseExchangeEvents, args: [baseUniWETHIncomingXfers, constants.BASE_UNIV3_LIQUIDITY_ADDRESS, BASE_UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM added to $WETH liquidity pool on UniV3 (Base):", "IncreaseLiquidity", txMinimum] },
+                                
+//         // { name: "uniUSDCOutgoingXfers", func: filterBaseExchangeEvents, args: [baseUniUSDCOutgoingXfers, constants.BASE_UNIV3_USDC_ADDRESS, BASE_UNI_V3_ABI, castsToSend, "$FOAM bought on UniV3 (Base):", "Swap", txMinimum] },
+//         // { name: "uniUSDCIncomingXfers", func: filterBaseExchangeEvents, args: [baseUniUSDCIncomingXfers, constants.BASE_UNIV3_USDC_ADDRESS, BASE_UNI_V3_ABI, castsToSend, "$FOAM sold on UniV3 (Base):", "Swap", txMinimum] },
+//         // { name: "uniUSDCOutgoingXfers2", func: filterBaseExchangeEvents, args: [baseUniUSDCOutgoingXfers, constants.BASE_UNIV3_LIQUIDITY_ADDRESS, BASE_UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM removed from $USDC liquidity pool on UniV3 (Base):", "DecreaseLiquidity", txMinimum] },
+//         // { name: "uniUSDCIncomingXfers2", func: filterBaseExchangeEvents, args: [baseUniUSDCIncomingXfers, constants.BASE_UNIV3_LIQUIDITY_ADDRESS, BASE_UNI_V3_LIQUIDITY_ABI, castsToSend, "$FOAM added to $USDC liquidity pool on UniV3 (Base):", "IncreaseLiquidity", txMinimum] },
+                    
+//         { name: "aerodromeOutgoingXfers", func: filterBaseExchangeEvents, args: [baseAerodromeOutgoingXfers, constants.BASE_UNIV3_USDC_ADDRESS, BASE_UNI_V3_ABI, castsToSend, "$FOAM bought on Aerodrome (Base):", "Swap", txMinimum] },
+//         { name: "aerodromeIncomingXfers", func: filterBaseExchangeEvents, args: [baseAerodromeIncomingXfers, constants.BASE_UNIV3_USDC_ADDRESS, BASE_UNI_V3_ABI, castsToSend, "$FOAM sold on Aerodrome (Base):", "Swap", txMinimum] },
+//         { name: "aerodromeOutgoingXfers2", func: filterBaseExchangeEvents, args: [baseAerodromeOutgoingXfers, constants.BASE_AERODROME_POOL_ADDRESS, VELEDROME_POOL_ABI, castsToSend, "$FOAM removed from liquidity on Aerodrome (Base):", "Burn", txMinimum] },
+//         { name: "aerodromeIncomingXfers2", func: filterBaseExchangeEvents, args: [baseAerodromeIncomingXfers, constants.BASE_AERODROME_POOL_ADDRESS, VELEDROME_POOL_ABI, castsToSend, "$FOAM added to liquidity on Aerodrome (Base):", "Mint", txMinimum] },
+// ];
+                
+//     // Processing all events that requiring additional chain querying
+//     const baseFilterResults2 = await processTransferData(unprocessedBaseCalls);
+//     // Processing remaining Base events that don't require additional chain querying
+//     await filterBaseMintBurns(baseMintTransfers, baseMintEvents, castsToSend, "$FOAM bridged to Base from L1:", txMinimum);
+//     await filterBaseMintBurns(baseBurnTransfers, baseBurnEvents, castsToSend, "$FOAM bridged to L1 from Base:", txMinimum);
+   
+//     console.log(castsToSend)
+
+
+// }
+
+// testBaseAggregator()

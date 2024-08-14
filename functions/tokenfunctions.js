@@ -447,6 +447,78 @@ async function filterBaseSwapEvents(event, resultArray, messageTemplate, txMinim
     }
 
 
+    async function filterBaseAggregatorEvents(events, resultArray, messageTemplate, txMinimum){ 
+        const ALCHEMY_API = await retryApiCall(() => accessSecret('ALCHEMY_API'));
+        const baseProvider = new ethers.providers.JsonRpcProvider(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API}`);
+        // Instantly returns if no events to process
+        if (!events) {
+            return;
+        }
+        for (let event of events) {
+            let netTransfer = {}; 
+            //continues if tx hash is found in array
+            if (resultArray.some(obj => obj.transactionHash === event.transactionHash)) {
+                continue;
+            }
+            // Getting transaction receipt for event  
+            let receipt = await retryApiCall(() =>  baseProvider.getTransactionReceipt(event.transactionHash));
+            let logs = receipt.logs;
+    
+            // Selecting only events interacting with the FOAM contract
+            logs = logs.filter(log => log.address === constants.BASE_FOAM_ADDRESS);
+            for (let log of logs) {
+    
+                // This is a very important check. Without this non-Transfer FOAM contract events like Approve can interfere with calculations
+                if (log.topics[0] !== constants.FOAM_TOKEN_XFER_METHOD) {
+                    continue;
+                }
+    
+                const [sender, receiver] = log.topics.slice(1); 
+                if (!(sender in netTransfer)) {
+                    netTransfer[sender] = 0;
+                }
+                if (!(receiver in netTransfer)) {
+                    netTransfer[receiver] = 0;
+                }
+    
+                let logValue = (parseInt(log.data, 16)) * Math.pow(10, -18);
+    
+                // Update net transfers based on sender and receiver
+                netTransfer[sender] -= logValue; 
+                netTransfer[receiver] += logValue; 
+            }
+    
+            // Calculating the total amount of FOAM transfered by adding up only recieving numbers
+            // This is a very big part of why aggregator transactions have to be handled separately
+            // If for example someone used an aggregator and used two exchanges each with 80% of the tx threshold it would be overlooked
+            let transferTotal = 0;
+            const values = Object.values(netTransfer);
+            values.forEach(value => {
+                if (value > 0) {
+                    transferTotal += value;
+                }
+            });
+    
+           
+            if (transferTotal >= txMinimum) {
+                let formattedTxValue = Math.round(transferTotal);
+                formattedTxValue = formattedTxValue.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",")
+                let castMessage = `${formattedTxValue} ${messageTemplate}`;
+                let block = await baseProvider.getBlock(event.blockNumber)
+                let newObject = {
+                    transactionHash: event.transactionHash,
+                    blockHeight: event.blockNumber,
+                    timestamp: block.timestamp,
+                    value: formattedTxValue,
+                    cast: castMessage,
+                    etherUrl: `https://basescan.org/tx/${event.transactionHash}`
+                };
+                resultArray.push(newObject);
+            }
+        }
+    }
+
+
 
 module.exports = { 
     filterMintBurns,
@@ -458,6 +530,7 @@ module.exports = {
     getBaseTransferData,
     filterBaseExchangeEvents,
     filterBaseSwapEvents,
-    filterBaseMintBurns
+    filterBaseMintBurns,
+    filterBaseAggregatorEvents
 };
 
