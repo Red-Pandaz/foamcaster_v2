@@ -119,8 +119,8 @@ const constants = require('./constants/constants.js');
             const OKX_BUY_FILTER = FOAM_TOKEN_CONTRACT.filters.Transfer([constants.UNI_V3_ADDRESS, constants.VELEDROME_POOL_ADDRESS], constants.OKX_ROUTER_ADDRESSES);
             const OKX_SELL_FILTER = FOAM_TOKEN_CONTRACT.filters.Transfer(constants.OKX_ROUTER_ADDRESSES, [constants.UNI_V3_ADDRESS, constants.VELEDROME_EXECUTIVE_ADDRESS]);
 
-            const ZERO_X_BUY_FILTER = FOAM_TOKEN_CONTRACT.filters.Transfer([constants.UNI_V3_ADDRESS, constants.VELEDROME_POOL_ADDRESS], constants.ZERO_X_ROUTER_ADDRESS);
-            const ZERO_X_SELL_FILTER = FOAM_TOKEN_CONTRACT.filters.Transfer(constants.ZERO_X_ROUTER_ADDRESS, [constants.UNI_V3_ADDRESS, constants.VELEDROME_EXECUTIVE_ADDRESS]);
+            const ZERO_X_BUY_FILTER = FOAM_TOKEN_CONTRACT.filters.Transfer([constants.UNI_V3_ADDRESS, constants.VELEDROME_POOL_ADDRESS], [constants.ZERO_X_ROUTER_ADDRESS, constants.ZERO_X_ROUTER_ADDRESS_2]);
+            const ZERO_X_SELL_FILTER = FOAM_TOKEN_CONTRACT.filters.Transfer([constants.ZERO_X_ROUTER_ADDRESS, constants.ZERO_X_ROUTER_ADDRESS_2], [constants.UNI_V3_ADDRESS, constants.VELEDROME_EXECUTIVE_ADDRESS]);
 
             const MINT_EVENT_FILTER = FOAM_TOKEN_CONTRACT.filters.Mint();
             const BURN_EVENT_FILTER = FOAM_TOKEN_CONTRACT.filters.Burn();
