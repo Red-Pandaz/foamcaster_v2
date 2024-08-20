@@ -52,15 +52,15 @@ const constants = require('./constants/constants.js');
     
             // Checking cron time vs the time elapsed since last timestamp. 
             // If too much time has elapsed it does nothing but try to update and return
-            if((currentTimestamp - lastTimestamp) > (cronTime * 3.75)){
-                console.log("Too much time in between timestamps, program risks recasting");
-                updateTimestamp(currentBlock.number, baseCurrentBlock.number, []);
-                return;
-            }
+            // if((currentTimestamp - lastTimestamp) > (cronTime * 3.75)){
+            //     console.log("Too much time in between timestamps, program risks recasting");
+            //     updateTimestamp(currentBlock.number, baseCurrentBlock.number, []);
+            //     return;
+            // }
             console.log("OP START BLOCK: " + fromBlock);
             console.log("OP END BLOCK: " + toBlock);
             console.log("BASE START BLOCK: " + baseFromBlock)
-            console.log("BASE TO BLOCK: " + baseToBlock)
+            console.log("BASE END BLOCK: " + baseToBlock)
 
     
             await getZoneCreations(baseFromBlock, baseToBlock, castsToSend, zoneCollection, zoneArray, newZones);
@@ -268,6 +268,7 @@ const constants = require('./constants/constants.js');
         ];
             // Processing all events that requiring additional chain querying
             const filterResults2 = await processTransferData(unprocessedCalls);
+            console.log('optimism filter results 2 logged')
 
                      //Aggregator events MUST be caught before exchange events get processed
          const unprocessedBaseCalls = [
@@ -294,7 +295,9 @@ const constants = require('./constants/constants.js');
         ];
 
               // Processing all events that requiring additional chain querying
+              console.log('attempting base filter results 2')
         const baseFilterResults2 = await processTransferData(unprocessedBaseCalls);
+        console.log('completed base filter results 2')
         
         
             // Processing remaining Optimism events that don't require additional chain querying

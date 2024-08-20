@@ -101,6 +101,7 @@ async function getLastTimestamp() {
 }
 
 async function getLastTimestampInternal() {
+    console.log('attempting timestamp database connection')
     const DB_URI = await retryApiCall(() => accessSecret('DB_URI'));
     try {
         if (!client || !client.topology || !client.topology.isConnected()) {
